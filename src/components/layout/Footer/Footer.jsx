@@ -37,7 +37,7 @@ const Footer = () => {
             </ul>
           </div>
           <div>
-            <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
+            <h4 className="text-left text-lg font-semibold mb-4">Follow Us</h4>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition">
                 <i className="fab fa-facebook-f"></i>
@@ -52,7 +52,7 @@ const Footer = () => {
                 <i className="fab fa-youtube"></i>
               </a>
             </div>
-            <h4 className="text-lg font-semibold mt-6 mb-2">Newsletter</h4>
+            <h4 className="text-left text-lg font-semibold mt-6 mb-2">Newsletter</h4>
             <div className="flex">
               <input type="email" placeholder="Your email" className="bg-gray-800 text-white px-4 py-2 rounded-l focus:outline-none w-full" />
               <button className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-r">
@@ -62,7 +62,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
-          <p>&copy; 2023 Explore Sri Lanka. All rights reserved.</p>
+          <p>&copy; 2025 Explore Sri Lanka. All rights reserved.</p>
         </div>
       </div>
     </footer>

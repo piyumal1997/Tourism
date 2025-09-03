@@ -49,3 +49,51 @@ sri-lanka-tourism/
 ├── vite.config.js
 ├── tailwind.config.js
 └── postcss.config.js
+
+
+src/
+├── components/
+│   ├── layout/
+│   │   ├── Layout/
+│   │   │   └── Layout.jsx
+│   │   ├── Header/
+│   │   │   └── Header.jsx
+│   │   └── Footer/
+│   │       └── Footer.jsx
+│   ├── ui/
+│   │   └── LoadingSpinner.jsx
+│   └── common/
+│       └── ScrollToTop.jsx
+├── pages/
+│   ├── Home/
+│   │   ├── Home.jsx
+│   │   └── sections/
+│   │       ├── HeroSection.jsx
+│   │       ├── FeaturedDestinations.jsx
+│   │       ├── PopularExperiences.jsx
+│   │       ├── TravelTipsPreview.jsx
+│   │       └── NewsletterSignup.jsx
+│   ├── Destinations/
+│   │   ├── Destinations.jsx
+│   │   └── components/
+│   │       ├── DestinationFilters.jsx
+│   │       ├── DestinationMap.jsx
+│   │       └── DestinationList.jsx
+│   ├── Experiences/
+│   │   └── Experiences.jsx
+│   ├── TravelTips/
+│   │   └── TravelTips.jsx
+│   ├── LocationDetail/
+│   │   ├── LocationDetail.jsx
+│   │   └── components/
+│   │       ├── LocationGallery.jsx
+│   │       ├── LocationInfo.jsx
+│   │       ├── LocationMap.jsx
+│   │       └── NearbyLocations.jsx
+│   └── NotFound/
+│       └── NotFound.jsx
+├── router/
+│   └── AppRouter.jsx
+├── contexts/
+│   └── LocationContext.jsx
+└── App.jsx
