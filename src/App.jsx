@@ -1,6 +1,7 @@
 import { BrowserRouter as Router } from 'react-router-dom';
 import { LocationProvider } from './contexts/LocationContext';
 import AppRouter from './router/AppRouter';
+import React from 'react';
 import './App.css';
 
 function App() {
