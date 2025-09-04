@@ -6,7 +6,7 @@ import { Outlet } from 'react-router-dom'
 const Layout = () => {
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div style={{ fontFamily: "'Poppins', sans-serif" }} className="min-h-screen flex flex-col">
       <Header />
       {/* Main content area with automatic growth */}
       <main
