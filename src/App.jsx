@@ -1,7 +1,7 @@
-import { LocationProvider } from './contexts/LocationContext';
-import Router from './router/Router';
-import ErrorBoundary from './components/common/ErrorBoundary';
-import React from 'react';
+import { LocationProvider } from "./contexts/LocationContext";
+import Router from "./router/Router";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import React from "react";
 
 function App() {
   return (
@@ -10,7 +10,7 @@ function App() {
         <div className="bg-gray-50 font-sans">
           <Router />
         </div>
-    </LocationProvider>
+      </LocationProvider>
     </ErrorBoundary>
   );
 }
