@@ -2,11 +2,11 @@ import { React, lazy, Suspense } from 'react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 // Lazy load sections for better performance
-const HeroSection = lazy(() => import('./sections/HeroSection'));
-const FeaturedDestinations = lazy(() => import('./sections/FeaturedDestinations'));
-const PopularExperiences = lazy(() => import('./sections/PopularExperiences'));
-const TravelTipsPreview = lazy(() => import('./sections/TravelTipsPreview'));
-const NewsletterSignup = lazy(() => import('./sections/NewsletterSignup'));
+const HeroSection = lazy(() => import('./Sections/HeroSection'));
+const FeaturedDestinations = lazy(() => import('./Sections/FeaturedDestinations'));
+const PopularExperiences = lazy(() => import('./Sections/PopularExperiences'));
+const TravelTipsPreview = lazy(() => import('./Sections/TravelTipsPreview'));
+const NewsletterSignup = lazy(() => import('./Sections/NewsletterSignup'));
 
 const Home = () => {
   return (
