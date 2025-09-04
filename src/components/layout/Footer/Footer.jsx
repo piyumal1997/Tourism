@@ -1,72 +1,146 @@
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+
 const Footer = () => {
+  const location = useLocation();
+  const currentYear = new Date().getFullYear();
+
+  // Reusable contact information
+  const CONTACT_INFO = {
+    address: "123 Colombo, Sri Lanka",
+    phone: "+94 112 345 678",
+    email: "info@exploresrilanka.lk"
+  };
+
+  // Navigation links configuration (matching the header)
+  const NAV_LINKS = [
+    { path: "/", label: "Home" },
+    { path: "/destinations", label: "Destinations" },
+    { path: "/experiences", label: "Experiences" },
+    { path: "/travel-tips", label: "Travel Tips" }
+  ];
+
+  // Social media links
+  const SOCIAL_LINKS = [
+    { icon: "facebook-f", url: "#" },
+    { icon: "instagram", url: "#" },
+    { icon: "twitter", url: "#" },
+    { icon: "youtube", url: "#" }
+  ];
+
+  // Handles smooth scroll to top when on same page
+  const handleScrollTop = (e, path) => {
+    if (location.pathname === path) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    // Store scroll preference for subsequent navigation
+    sessionStorage.setItem("shouldScroll", "true");
+  };
+
   return (
-    <footer className="bg-gray-900 text-white py-12">
+    <footer className="bg-gray-900 text-white py-12" role="contentinfo">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Branding section */}
           <div>
             <h3 className="text-xl font-bold mb-4 flex items-center">
               <i className="fas fa-map-marked-alt text-2xl text-emerald-400 mr-2"></i>
               Explore Sri Lanka
             </h3>
-            <p className="text-left text-gray-400">Discover the beauty, culture, and adventure of Sri Lanka through our comprehensive travel guide.</p>
+            <p className="text-gray-400">Discover the beauty, culture, and adventure of Sri Lanka through our comprehensive travel guide.</p>
           </div>
-          <div>
-            <h4 className="text-left text-lg font-semibold mb-4">Quick Links</h4>
-            <ul className="text-left space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-white transition">Home</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition">Destinations</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition">Travel Guides</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition">About Us</a></li>
+
+          {/* Navigation links */}
+          <nav aria-label="Footer navigation">
+            <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-2">
+              {NAV_LINKS.map(({ path, label }) => (
+                <li key={path}>
+                  <Link
+                    to={path}
+                    onClick={(e) => handleScrollTop(e, path)}
+                    className={`text-gray-400 hover:text-white transition ${
+                      location.pathname === path ? "text-emerald-400" : ""
+                    }`}
+                    aria-label={`Navigate to ${label}`}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </div>
+          </nav>
+
+          {/* Contact information */}
           <div>
-            <h4 className="text-left text-lg font-semibold mb-4">Contact Us</h4>
-            <ul className="text-left space-y-2">
+            <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
+            <ul className="space-y-2">
               <li className="flex items-center">
                 <i className="fas fa-map-marker-alt text-emerald-400 mr-3"></i>
-                <span className="text-gray-400">123 Colombo, Sri Lanka</span>
+                <span className="text-gray-400">{CONTACT_INFO.address}</span>
               </li>
               <li className="flex items-center">
                 <i className="fas fa-phone-alt text-emerald-400 mr-3"></i>
-                <span className="text-gray-400">+94 112 345 678</span>
+                <a
+                  href={`tel:${CONTACT_INFO.phone}`}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  aria-label="Contact phone number"
+                >
+                  {CONTACT_INFO.phone}
+                </a>
               </li>
               <li className="flex items-center">
                 <i className="fas fa-envelope text-emerald-400 mr-3"></i>
-                <span className="text-gray-400">info@exploresrilanka.lk</span>
+                <a
+                  href={`mailto:${CONTACT_INFO.email}`}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  aria-label="Contact email address"
+                >
+                  {CONTACT_INFO.email}
+                </a>
               </li>
             </ul>
           </div>
+
+          {/* Social media and newsletter */}
           <div>
-            <h4 className="text-left text-lg font-semibold mb-4">Follow Us</h4>
-            <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition">
-                <i className="fab fa-facebook-f"></i>
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition">
-                <i className="fab fa-instagram"></i>
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition">
-                <i className="fab fa-twitter"></i>
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition">
-                <i className="fab fa-youtube"></i>
-              </a>
+            <h4 className="text-lg font-semibold mb-4">Follow Us</h4>
+            <div className="flex space-x-4 mb-6">
+              {SOCIAL_LINKS.map(({ icon, url }, index) => (
+                <a
+                  key={index}
+                  href={url}
+                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-emerald-600 transition"
+                  aria-label={`Follow us on ${icon}`}
+                >
+                  <i className={`fab fa-${icon}`}></i>
+                </a>
+              ))}
             </div>
-            <h4 className="text-left text-lg font-semibold mt-6 mb-2">Newsletter</h4>
+            
+            <h4 className="text-lg font-semibold mb-2">Newsletter</h4>
             <div className="flex">
-              <input type="email" placeholder="Your email" className="bg-gray-800 text-white px-4 py-2 rounded-l focus:outline-none w-full" />
+              <input
+                type="email"
+                placeholder="Your email"
+                className="bg-gray-800 text-white px-4 py-2 rounded-l focus:outline-none w-full"
+                aria-label="Email for newsletter subscription"
+              />
               <button className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-r">
-                <i className="fas fa-paper-plane"></i>
+                <i className="fas fa-paper-plane" aria-hidden="true"></i>
               </button>
             </div>
           </div>
         </div>
+
+        {/* Copyright section */}
         <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-500">
-          <p>&copy; 2025 Explore Sri Lanka. All rights reserved.</p>
+          <p>&copy; {currentYear} Explore Sri Lanka. All rights reserved.</p>
         </div>
       </div>
     </footer>
-  )
-}
+  );
+};
 
-export default Footer
+export default Footer;
