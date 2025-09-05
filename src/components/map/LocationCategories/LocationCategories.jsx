@@ -27,7 +27,7 @@ const LocationCategories = ({ filterMarkers }) => {
 
   return (
     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-lg p-2">
-      <div className="flex space-x-2 overflow-x-auto py-1 max-w-[90vw]">
+      <div className="flex space-x-2 overflow-x-auto py-1 max-w-[90vw] rounded-full">
         <button className={getButtonClass('all')} onClick={() => handleFilter('all')}>
           <i className="fas fa-globe mr-2"></i>All
         </button>

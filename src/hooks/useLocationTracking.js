@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export const useLocationTracking = () => {
   const [userLocation, setUserLocation] = useState(null);
@@ -6,7 +6,7 @@ export const useLocationTracking = () => {
   const [watching, setWatching] = useState(false);
   const [watchId, setWatchId] = useState(null);
 
-  const getUserLocation = () => {
+  const getUserLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         setLocationError('Geolocation is not supported by your browser');
@@ -18,7 +18,8 @@ export const useLocationTracking = () => {
         (position) => {
           const location = {
             lat: position.coords.latitude,
-            lng: position.coords.longitude
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy
           };
           setUserLocation(location);
           setLocationError(null);
@@ -29,12 +30,16 @@ export const useLocationTracking = () => {
           console.error('Geolocation error:', error);
           reject(error);
         },
-        { enableHighAccuracy: true, timeout: 10000 }
+        { 
+          enableHighAccuracy: true, 
+          timeout: 10000,
+          maximumAge: 60000 
+        }
       );
     });
-  };
+  }, []);
 
-  const startWatchingLocation = () => {
+  const startWatchingLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser');
       return;
@@ -44,7 +49,8 @@ export const useLocationTracking = () => {
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy
         });
         setLocationError(null);
       },
@@ -52,20 +58,24 @@ export const useLocationTracking = () => {
         setLocationError('Unable to track your location');
         console.error('Geolocation error:', error);
       },
-      { enableHighAccuracy: true, maximumAge: 10000 }
+      { 
+        enableHighAccuracy: true, 
+        maximumAge: 10000,
+        timeout: 5000
+      }
     );
 
     setWatchId(id);
     setWatching(true);
-  };
+  }, []);
 
-  const stopWatchingLocation = () => {
+  const stopWatchingLocation = useCallback(() => {
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
       setWatching(false);
       setWatchId(null);
     }
-  };
+  }, [watchId]);
 
   return {
     userLocation,

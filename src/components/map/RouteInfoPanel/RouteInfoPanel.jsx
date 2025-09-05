@@ -12,7 +12,7 @@ const RouteInfoPanel = ({ routeInfo, onClose }) => {
   };
 
   return (
-    <div className="absolute top-20 right-4 z-10 bg-white p-4 rounded-lg shadow-lg max-w-sm">
+    <div className="absolute top-20 right-4 z-10 bg-white p-4 rounded-lg shadow-lg max-w-sm route-info-panel">
       <div className="flex justify-between items-center mb-2">
         <h3 className="font-bold text-lg">Route Information</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
@@ -38,9 +38,14 @@ const RouteInfoPanel = ({ routeInfo, onClose }) => {
       
       <div>
         <h4 className="font-semibold mb-2">Directions:</h4>
-        <ol className="list-decimal pl-5 space-y-2 max-h-60 overflow-y-auto">
+        <ol className="space-y-2 max-h-60 overflow-y-auto">
           {routeInfo.steps.map((step, index) => (
-            <li key={index} className="text-sm" dangerouslySetInnerHTML={{ __html: step.instructions }} />
+            <li key={index} className="route-step">
+              <div className="text-sm" dangerouslySetInnerHTML={{ __html: step.instructions }} />
+              {step.distance && (
+                <p className="text-xs text-gray-500 mt-1">{step.distance.text} • {step.duration.text}</p>
+              )}
+            </li>
           ))}
         </ol>
       </div>

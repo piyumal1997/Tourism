@@ -11,7 +11,9 @@ const MapControls = ({
   onRadiusChange,
   watchingLocation,
   startWatchingLocation,
-  stopWatchingLocation
+  stopWatchingLocation,
+  selectedLocations,
+  calculateMultiPointRoute
 }) => {
   const [travelMode, setTravelMode] = useState('DRIVING');
   const [radius, setRadius] = useState(50);
@@ -30,8 +32,7 @@ const MapControls = ({
   const travelModes = [
     { key: 'DRIVING', label: 'Driving', icon: 'car' },
     { key: 'WALKING', label: 'Walking', icon: 'walking' },
-    { key: 'BICYCLING', label: 'Bicycling', icon: 'bicycle' },
-    { key: 'TRANSIT', label: 'Transit', icon: 'bus' }
+    { key: 'BICYCLING', label: 'Bicycling', icon: 'bicycle' }
   ];
 
   return (
@@ -73,6 +74,15 @@ const MapControls = ({
       >
         <i className="fas fa-route mr-2"></i>Clear Route
       </button>
+      
+      {selectedLocations.length > 0 && (
+        <button 
+          onClick={calculateMultiPointRoute} 
+          className="bg-emerald-600 text-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-emerald-700 flex items-center"
+        >
+          <i className="fas fa-route mr-2"></i>Calculate Route ({selectedLocations.length})
+        </button>
+      )}
       
       {/* Travel Mode Selection */}
       <div className="bg-white p-2 rounded-lg shadow-md">

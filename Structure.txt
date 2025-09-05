@@ -74,11 +74,7 @@ src/
 │   │       ├── TravelTipsPreview.jsx
 │   │       └── NewsletterSignup.jsx
 │   ├── Destinations/
-│   │   ├── Destinations.jsx
-│   │   └── components/
-│   │       ├── DestinationFilters.jsx
-│   │       ├── DestinationMap.jsx
-│   │       └── DestinationList.jsx
+│   │   └── Destinations.jsx
 │   ├── Experiences/
 │   │   └── Experiences.jsx
 │   ├── TravelTips/

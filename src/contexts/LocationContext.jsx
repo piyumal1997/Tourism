@@ -16,6 +16,11 @@ export const LocationProvider = ({ children }) => {
   const [travelMode, setTravelMode] = useState('DRIVING');
   const [radius, setRadius] = useState(50); // in km
 
+  const showRouteToLocation = (location) => {
+    // This function is now handled in MapSection
+    console.log('Route to location:', location);
+  };
+
   const value = {
     selectedLocation,
     setSelectedLocation,
@@ -24,7 +29,8 @@ export const LocationProvider = ({ children }) => {
     travelMode,
     setTravelMode,
     radius,
-    setRadius
+    setRadius,
+    showRouteToLocation
   };
 
   return (
