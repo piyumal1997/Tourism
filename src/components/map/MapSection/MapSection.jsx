@@ -4,7 +4,7 @@ import { useLocationTracking } from '../../../hooks/useLocationTracking';
 import { SRI_LANKA_CENTER } from '../../../utils/constants';
 import MapControls from '../MapControls/MapControls';
 import LocationCategories from '../LocationCategories/LocationCategories';
-import { calculateDistance, findLocationsWithinRadius } from '../../../utils/locationUtils';
+import { calculateDistance, findLocationsWithinRadius, generateCircleCoordinates } from '../../../utils/locationUtils';
 import { useLocation } from '../../../contexts/LocationContext';
 import RouteInfoPanel from '../RouteInfoPanel/RouteInfoPanel';
 
@@ -18,11 +18,13 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
   const [routeLayer, setRouteLayer] = useState(null);
   const [userLocationMarker, setUserLocationMarker] = useState(null);
   const [radiusCircle, setRadiusCircle] = useState(null);
+  const [radiusFill, setRadiusFill] = useState(null);
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [buildingLayerAdded, setBuildingLayerAdded] = useState(false);
+  const [locationsInRadius, setLocationsInRadius] = useState([]);
   const { isLoaded } = useMapLibre();
-  const { userLocation, getUserLocation, startWatchingLocation, stopWatchingLocation, watching } = useLocationTracking();
-  const { routeInfo, setRouteInfo, travelMode, radius } = useLocation();
+  const { userLocation, locationError, watching, toggleWatchingLocation } = useLocationTracking();
+  const { routeInfo, setRouteInfo, travelMode, radius, setRadius } = useLocation();
 
   // Initialize Map with 3D capabilities
   useEffect(() => {
@@ -30,14 +32,14 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       try {
         const newMap = new window.maplibregl.Map({
           container: mapRef.current,
-          style: 'https://tiles.openfreemap.org/styles/bright', // Using OpenFreeMap bright style
+          style: 'https://tiles.openfreemap.org/styles/bright',
           center: [SRI_LANKA_CENTER.lng, SRI_LANKA_CENTER.lat],
-          zoom: 13,
+          zoom: 10,
           minZoom: 6,
           maxZoom: 18,
-          pitch: is3DView ? 45 : 0, // Initial pitch for 3D view
-          bearing: is3DView ? -17.6 : 0,
-          canvasContextAttributes: { antialias: true } // Enable antialiasing for smoother 3D
+          pitch: 0,
+          bearing: 0,
+          canvasContextAttributes: { antialias: true }
         });
 
         newMap.on('load', () => {
@@ -46,18 +48,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
           
           // Add 3D buildings layer
           add3DBuildingsLayer(newMap);
-          
-          // Add terrain if available
-          try {
-            newMap.addSource('terrain', {
-              type: 'raster-dem',
-              url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
-              tileSize: 256
-            });
-            newMap.setTerrain({ source: 'terrain', exaggeration: 1 });
-          } catch (terrainError) {
-            console.warn('Terrain not available:', terrainError);
-          }
         });
 
         newMap.on('error', (e) => {
@@ -69,9 +59,9 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         console.error('Failed to initialize map:', mapError);
       }
     }
-  }, [isLoaded, map, is3DView]);
+  }, [isLoaded, map]);
 
-  // Add 3D buildings layer to the map :cite[1]:cite[2]
+  // Add 3D buildings layer to the map
   const add3DBuildingsLayer = useCallback((mapInstance) => {
     if (!mapInstance || buildingLayerAdded) return;
 
@@ -93,14 +83,14 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         type: 'vector',
       });
 
-      // Add 3D buildings layer :cite[1]
+      // Add 3D buildings layer
       mapInstance.addLayer(
         {
           'id': '3d-buildings',
           'source': 'openfreemap',
           'source-layer': 'building',
           'type': 'fill-extrusion',
-          'minzoom': 13, // Reduced from 15 to show buildings at lower zoom levels
+          'minzoom': 13,
           'filter': ['!=', ['get', 'hide_3d'], true],
           'paint': {
             'fill-extrusion-color': [
@@ -139,39 +129,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     }
   }, [buildingLayerAdded]);
 
-  // Toggle 3D view with buildings
-  const toggle3DView = useCallback(() => {
-    if (map) {
-      setIs3DView(prev => {
-        const newValue = !prev;
-        
-        if (newValue) {
-          // Enable 3D view
-          map.easeTo({
-            pitch: 45,
-            bearing: -17.6,
-            duration: 1000,
-            zoom: 15 // Zoom in for better 3D effect
-          });
-          
-          // Ensure 3D buildings layer is added
-          if (!buildingLayerAdded) {
-            add3DBuildingsLayer(map);
-          }
-        } else {
-          // Return to 2D view
-          map.easeTo({
-            pitch: 0,
-            bearing: 0,
-            duration: 1000
-          });
-        }
-        
-        return newValue;
-      });
-    }
-  }, [map, buildingLayerAdded, add3DBuildingsLayer]);
-
   // Update user location marker when location changes
   useEffect(() => {
     if (map && userLocation) {
@@ -180,7 +137,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         userLocationMarker.remove();
       }
       
-      // Create a pulsating blue dot for user location (Google Maps style)
+      // Create a pulsating blue dot for user location
       const el = document.createElement('div');
       el.className = 'user-location-marker';
       el.innerHTML = `
@@ -233,47 +190,42 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
 
   // Draw radius circle and filter locations
   useEffect(() => {
-    if (map && userLocation && radius) {
-      // Remove existing radius circle
-      if (map.getLayer('search-radius-circle')) {
-        map.removeLayer('search-radius-circle');
-        map.removeSource('search-radius-circle');
+    if (map && userLocation && radius > 0) {
+      // Remove existing radius circle and fill
+      if (radiusCircle) {
+        map.removeLayer(radiusCircle);
+        map.removeSource(radiusCircle);
       }
       
-      if (map.getLayer('search-radius-fill')) {
-        map.removeLayer('search-radius-fill');
-        map.removeSource('search-radius-fill');
+      if (radiusFill) {
+        map.removeLayer(radiusFill);
+        map.removeSource(radiusFill);
       }
       
-      // Calculate circle coordinates
-      const circlePoints = [];
-      const steps = 72; // Number of points to create a smooth circle
+      // Generate circle coordinates
+      const circleCoordinates = generateCircleCoordinates(
+        userLocation.lat, 
+        userLocation.lng, 
+        radius,
+        72 // Number of points for smooth circle
+      );
       
-      for (let i = 0; i <= steps; i++) {
-        const angle = (i / steps) * 2 * Math.PI;
-        const lat = userLocation.lat + (radius / 111.32) * Math.cos(angle);
-        const lng = userLocation.lng + (radius / (111.32 * Math.cos(userLocation.lat * (Math.PI / 180)))) * Math.sin(angle);
-        circlePoints.push([lng, lat]);
-      }
-      
-      // Close the circle
-      circlePoints.push(circlePoints[0]);
-      
-      map.addSource('search-radius-circle', {
+      // Add radius circle source and layer
+      map.addSource('radius-circle', {
         type: 'geojson',
         data: {
           type: 'Feature',
           geometry: {
             type: 'LineString',
-            coordinates: circlePoints
+            coordinates: circleCoordinates
           }
         }
       });
       
       map.addLayer({
-        id: 'search-radius-circle',
+        id: 'radius-circle',
         type: 'line',
-        source: 'search-radius-circle',
+        source: 'radius-circle',
         paint: {
           'line-color': '#FF5722',
           'line-width': 2,
@@ -282,29 +234,33 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         }
       });
       
-      // Fill the circle
-      map.addSource('search-radius-fill', {
+      setRadiusCircle('radius-circle');
+      
+      // Add radius fill source and layer
+      map.addSource('radius-fill', {
         type: 'geojson',
         data: {
           type: 'Feature',
           geometry: {
             type: 'Polygon',
-            coordinates: [circlePoints]
+            coordinates: [circleCoordinates]
           }
         }
       });
       
       map.addLayer({
-        id: 'search-radius-fill',
+        id: 'radius-fill',
         type: 'fill',
-        source: 'search-radius-fill',
+        source: 'radius-fill',
         paint: {
           'fill-color': '#FF5722',
           'fill-opacity': 0.1
         }
       });
       
-      // Filter and highlight locations within radius
+      setRadiusFill('radius-fill');
+      
+      // Find and highlight locations within radius
       const locationsWithinRadius = findLocationsWithinRadius(
         locations, 
         userLocation.lat, 
@@ -312,7 +268,9 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         radius
       );
       
-      // Update markers visibility
+      setLocationsInRadius(locationsWithinRadius);
+      
+      // Update markers visibility and style
       markers.forEach(marker => {
         const location = locations.find(l => 
           l.coordinates.lat === marker._lngLat.lat && 
@@ -373,6 +331,39 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       setMarkers(newMarkers);
     }
   }, [map, locations]);
+
+  // Toggle 3D view with buildings
+  const toggle3DView = useCallback(() => {
+    if (map) {
+      setIs3DView(prev => {
+        const newValue = !prev;
+        
+        if (newValue) {
+          // Enable 3D view
+          map.easeTo({
+            pitch: 45,
+            bearing: -17.6,
+            duration: 1000,
+            zoom: 15
+          });
+          
+          // Ensure 3D buildings layer is added
+          if (!buildingLayerAdded) {
+            add3DBuildingsLayer(map);
+          }
+        } else {
+          // Return to 2D view
+          map.easeTo({
+            pitch: 0,
+            bearing: 0,
+            duration: 1000
+          });
+        }
+        
+        return newValue;
+      });
+    }
+  }, [map, buildingLayerAdded, add3DBuildingsLayer]);
 
   // Get category icon
   const getCategoryIcon = (category) => {
@@ -465,14 +456,11 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
 
   const showRouteToLocation = (location) => {
     if (!userLocation) {
-      getUserLocation().then(() => {
-        if (userLocation) {
-          calculateRoute([userLocation, location.coordinates]);
-        }
-      });
-    } else {
-      calculateRoute([userLocation, location.coordinates]);
+      alert('Please enable location tracking first');
+      return;
     }
+    
+    calculateRoute([userLocation, location.coordinates]);
   };
 
   const clearRoute = () => {
@@ -500,65 +488,16 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
 
   const findNearestLocations = () => {
     if (!userLocation) {
-      getUserLocation();
+      alert('Please enable location tracking first');
       return;
     }
     
-    // Find locations within selected radius
-    const nearestLocations = findLocationsWithinRadius(
-      locations, 
-      userLocation.lat, 
-      userLocation.lng, 
-      radius
-    );
-    
-    // Sort by distance
-    nearestLocations.sort((a, b) => {
-      const distA = calculateDistance(
-        userLocation.lat, 
-        userLocation.lng,
-        a.coordinates.lat,
-        a.coordinates.lng
-      );
-      const distB = calculateDistance(
-        userLocation.lat, 
-        userLocation.lng,
-        b.coordinates.lat,
-        b.coordinates.lng
-      );
-      return distA - distB;
-    });
-    
-    // Update markers to show only nearest locations
-    markers.forEach(marker => {
-      const location = locations.find(l => 
-        l.coordinates.lat === marker._lngLat.lat && 
-        l.coordinates.lng === marker._lngLat.lng
-      );
-      
-      if (location) {
-        const isNearby = nearestLocations.includes(location);
-        marker.getElement().style.display = isNearby ? 'block' : 'none';
-        
-        // Add highlight effect for locations within radius
-        if (isNearby) {
-          marker.getElement().style.filter = 'drop-shadow(0px 0px 8px rgba(255, 87, 34, 0.8))';
-          marker.getElement().style.zIndex = '10';
-        } else {
-          marker.getElement().style.filter = '';
-          marker.getElement().style.zIndex = '1';
-        }
-      }
-    });
-    
     // Zoom to user location
-    if (nearestLocations.length > 0) {
-      map.flyTo({
-        center: [userLocation.lng, userLocation.lat],
-        zoom: 10,
-        duration: 1000
-      });
-    }
+    map.flyTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: 12,
+      duration: 1000
+    });
   };
 
   const filterMarkers = (category) => {
@@ -576,23 +515,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     });
   };
 
-  const handleTravelModeChange = (mode) => {
-    if (selectedLocations.length > 0) {
-      const waypoints = userLocation ? [userLocation, ...selectedLocations.map(l => l.coordinates)] : 
-        selectedLocations.map(l => l.coordinates);
-      
-      calculateRoute(waypoints, mode);
-    } else if (routeInfo && userLocation) {
-      calculateRoute([userLocation, selectedLocation.coordinates], mode);
-    }
-  };
-
-  const handleRadiusChange = (newRadius) => {
-    if (userLocation) {
-      findNearestLocations();
-    }
-  };
-
   return (
     <section className="relative">
       <div ref={mapRef} className="h-screen w-full"></div>
@@ -605,12 +527,21 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         findNearestLocations={findNearestLocations}
         userLocation={userLocation}
         clearRoute={clearRoute}
-        onTravelModeChange={handleTravelModeChange}
-        onRadiusChange={handleRadiusChange}
+        travelMode={travelMode}
+        radius={radius}
+        setRadius={setRadius}
         watchingLocation={watching}
-        startWatchingLocation={startWatchingLocation}
-        stopWatchingLocation={stopWatchingLocation}
+        toggleWatchingLocation={toggleWatchingLocation}
+        locationsInRadius={locationsInRadius}
       />
+      
+      {/* Location Error Alert */}
+      {locationError && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <strong className="font-bold">Location Error: </strong>
+          <span className="block sm:inline">{locationError}</span>
+        </div>
+      )}
       
       {/* Route Information Panel */}
       {routeInfo && (

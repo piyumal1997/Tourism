@@ -32,11 +32,12 @@ export const findLocationsWithinRadius = (locations, centerLat, centerLng, radiu
 // Generate circle coordinates for radius visualization
 export const generateCircleCoordinates = (centerLat, centerLng, radiusKm, points = 72) => {
   const coordinates = [];
+  const earthRadiusKm = 6371;
   
-  for (let i = 0; i <= points; i++) {
+  for (let i = 0; i < points; i++) {
     const angle = (i / points) * 2 * Math.PI;
-    const lat = centerLat + (radiusKm / 111.32) * Math.cos(angle);
-    const lng = centerLng + (radiusKm / (111.32 * Math.cos(centerLat * (Math.PI / 180)))) * Math.sin(angle);
+    const lat = centerLat + (radiusKm / earthRadiusKm) * (180 / Math.PI) * Math.cos(angle);
+    const lng = centerLng + (radiusKm / earthRadiusKm) * (180 / Math.PI) * Math.sin(angle) / Math.cos(centerLat * Math.PI / 180);
     coordinates.push([lng, lat]);
   }
   

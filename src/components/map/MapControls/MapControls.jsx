@@ -7,24 +7,18 @@ const MapControls = ({
   findNearestLocations, 
   userLocation, 
   clearRoute,
-  onTravelModeChange,
-  onRadiusChange,
+  travelMode,
+  radius,
+  setRadius,
   watchingLocation,
-  startWatchingLocation,
-  stopWatchingLocation
+  toggleWatchingLocation,
+  locationsInRadius
 }) => {
-  const [travelMode, setTravelMode] = useState('DRIVING');
-  const [radius, setRadius] = useState(50);
-
-  const handleTravelModeChange = (mode) => {
-    setTravelMode(mode);
-    onTravelModeChange(mode);
-  };
+  const [showRadiusInfo, setShowRadiusInfo] = useState(false);
 
   const handleRadiusChange = (e) => {
     const newRadius = parseInt(e.target.value);
     setRadius(newRadius);
-    onRadiusChange(newRadius);
   };
 
   const travelModes = [
@@ -54,14 +48,14 @@ const MapControls = ({
       <button 
         onClick={findNearestLocations} 
         className="control-button"
-        title={userLocation ? 'Find Nearby Places' : 'Enable Location to Find Nearby'}
+        title="Find Nearby Locations"
         disabled={!userLocation}
       >
         <i className="fas fa-location-arrow"></i>
       </button>
       
       <button 
-        onClick={watchingLocation ? stopWatchingLocation : startWatchingLocation} 
+        onClick={toggleWatchingLocation} 
         className={`control-button ${watchingLocation ? 'active' : ''}`}
         title={watchingLocation ? 'Stop Tracking' : 'Track Location'}
       >
@@ -76,27 +70,18 @@ const MapControls = ({
         <i className="fas fa-route"></i>
       </button>
       
-      {/* Travel Mode Selection */}
-      <div className="bg-white p-2 rounded-lg shadow-md">
-        <label className="block text-sm font-medium mb-1">Travel Mode</label>
-        <div className="grid grid-cols-2 gap-1">
-          {travelModes.map(mode => (
-            <button
-              key={mode.key}
-              onClick={() => handleTravelModeChange(mode.key)}
-              className={`p-2 rounded text-xs flex items-center justify-center ${travelMode === mode.key ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}
-              title={mode.label}
-            >
-              <i className={`fas fa-${mode.icon} mr-1`}></i>
-              {mode.label}
-            </button>
-          ))}
+      {/* Radius Control */}
+      <div className="bg-white p-3 rounded-lg shadow-md">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium">Radius: {radius} km</label>
+          <button 
+            onClick={() => setShowRadiusInfo(!showRadiusInfo)}
+            className="text-blue-500 text-sm"
+          >
+            <i className={`fas ${showRadiusInfo ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+          </button>
         </div>
-      </div>
-      
-      {/* Radius Filter */}
-      <div className="bg-white p-2 rounded-lg shadow-md">
-        <label className="block text-sm font-medium mb-1">Radius: {radius} km</label>
+        
         <input 
           type="range" 
           min="1" 
@@ -105,6 +90,29 @@ const MapControls = ({
           onChange={handleRadiusChange}
           className="w-full"
         />
+        
+        {showRadiusInfo && (
+          <div className="mt-2 text-xs text-gray-600">
+            {locationsInRadius.length} locations within {radius} km radius
+          </div>
+        )}
+      </div>
+      
+      {/* Travel Mode Selection */}
+      <div className="bg-white p-2 rounded-lg shadow-md">
+        <label className="block text-sm font-medium mb-1">Travel Mode</label>
+        <div className="grid grid-cols-2 gap-1">
+          {travelModes.map(mode => (
+            <button
+              key={mode.key}
+              className={`p-2 rounded text-xs flex items-center justify-center ${travelMode === mode.key ? 'bg-emerald-500 text-white' : 'bg-gray-100'}`}
+              title={mode.label}
+            >
+              <i className={`fas fa-${mode.icon} mr-1`}></i>
+              {mode.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
