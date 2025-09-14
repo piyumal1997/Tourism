@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMapLibre } from '../../../hooks/useMapLibre';
 import { useLocationTracking } from '../../../hooks/useLocationTracking';
 import { SRI_LANKA_CENTER } from '../../../utils/constants';
 import MapControls from '../MapControls/MapControls';
 import LocationCategories from '../LocationCategories/LocationCategories';
-import { calculateDistance, findLocationsWithinRadius } from '../../../utils/locationUtils';
+import { calculateDistance } from '../../../utils/locationUtils';
 import { useLocation } from '../../../contexts/LocationContext';
 import RouteInfoPanel from '../RouteInfoPanel/RouteInfoPanel';
+import { getMapStyle, setupCustomProtocol } from '../../../utils/tileServerUtils';
 
 const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
   const mapRef = useRef(null);
@@ -16,38 +17,76 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [popup, setPopup] = useState(null);
   const [routeLayer, setRouteLayer] = useState(null);
+  const [currentTileServer, setCurrentTileServer] = useState('OPENSTREETMAP');
   const [userLocationMarker, setUserLocationMarker] = useState(null);
   const [radiusCircle, setRadiusCircle] = useState(null);
   const [selectedLocations, setSelectedLocations] = useState([]);
-  const [buildingLayerAdded, setBuildingLayerAdded] = useState(false);
   const { isLoaded } = useMapLibre();
   const { userLocation, getUserLocation, startWatchingLocation, stopWatchingLocation, watching } = useLocationTracking();
   const { routeInfo, setRouteInfo, travelMode, radius } = useLocation();
 
-  // Initialize Map with 3D capabilities
+  // CORS proxy function
+  const corsProxy = (url) => {
+    return `https://cors-anywhere.herokuapp.com/${url}`;
+  };
+
   useEffect(() => {
     if (isLoaded && mapRef.current && !map) {
       try {
+        // Initialize MapLibre with proper User-Agent headers
         const newMap = new window.maplibregl.Map({
           container: mapRef.current,
-          style: 'https://tiles.openfreemap.org/styles/bright', // Using OpenFreeMap bright style
+          style: getMapStyle(currentTileServer),
           center: [SRI_LANKA_CENTER.lng, SRI_LANKA_CENTER.lat],
-          zoom: 13,
+          zoom: 7,
           minZoom: 6,
           maxZoom: 18,
-          pitch: is3DView ? 45 : 0, // Initial pitch for 3D view
-          bearing: is3DView ? -17.6 : 0,
-          canvasContextAttributes: { antialias: true } // Enable antialiasing for smoother 3D
+          pitch: 0,
+          bearing: 0,
+          transformRequest: (url, resourceType) => {
+            // Add User-Agent header to avoid 403 errors
+            if (url.includes('openstreetmap.org') || url.includes('openfreemap.org')) {
+              return {
+                url: url,
+                headers: {
+                  'User-Agent': 'Sri-Lanka-Travel-Guide/1.0 (https://yourdomain.com)',
+                  'Accept': 'image/webp,image/*,*/*'
+                }
+              };
+            }
+            // Use proxy for CORS issues
+            if (url.includes('openfreemap.org') && resourceType === 'Tile') {
+              return {
+                url: corsProxy(url),
+                headers: {
+                  'User-Agent': 'Sri-Lanka-Travel-Guide/1.0'
+                }
+              };
+            }
+            return { url: url };
+          }
         });
+
+        // Set up custom protocol handling
+        setupCustomProtocol(newMap);
 
         newMap.on('load', () => {
           setMap(newMap);
-          console.log('Map loaded successfully');
-          
-          // Add 3D buildings layer
-          add3DBuildingsLayer(newMap);
-          
-          // Add terrain if available
+          console.log('Map loaded successfully with', currentTileServer);
+        });
+
+        newMap.on('error', (e) => {
+          console.error('Map error:', e);
+          // Fallback to alternative tile server if OpenFreeMap fails
+          if (e.error && (e.error.status === 403 || e.error.status === 429)) {
+            console.log('Falling back to OpenStreetMap due to', e.error.status);
+            setCurrentTileServer('OPENSTREETMAP');
+            newMap.setStyle(getMapStyle('OPENSTREETMAP'));
+          }
+        });
+
+        newMap.on('style.load', () => {
+          // Add terrain after style load if available
           try {
             newMap.addSource('terrain', {
               type: 'raster-dem',
@@ -60,117 +99,37 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
           }
         });
 
-        newMap.on('error', (e) => {
-          console.error('Map error:', e);
-        });
-
         setMap(newMap);
       } catch (mapError) {
         console.error('Failed to initialize map:', mapError);
+        // Fallback to basic OSM if everything else fails
+        const fallbackMap = new window.maplibregl.Map({
+          container: mapRef.current,
+          style: {
+            version: 8,
+            sources: {
+              'osm-tiles': {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap contributors'
+              }
+            },
+            layers: [{
+              id: 'osm-tiles',
+              type: 'raster',
+              source: 'osm-tiles',
+              minzoom: 0,
+              maxzoom: 22
+            }]
+          },
+          center: [SRI_LANKA_CENTER.lng, SRI_LANKA_CENTER.lat],
+          zoom: 7
+        });
+        setMap(fallbackMap);
       }
     }
-  }, [isLoaded, map, is3DView]);
-
-  // Add 3D buildings layer to the map :cite[1]:cite[2]
-  const add3DBuildingsLayer = useCallback((mapInstance) => {
-    if (!mapInstance || buildingLayerAdded) return;
-
-    try {
-      // Insert the layer beneath any symbol layer
-      const layers = mapInstance.getStyle().layers;
-
-      let labelLayerId;
-      for (let i = 0; i < layers.length; i++) {
-        if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
-          labelLayerId = layers[i].id;
-          break;
-        }
-      }
-
-      // Add vector source for buildings
-      mapInstance.addSource('openfreemap', {
-        url: 'https://tiles.openfreemap.org/planet',
-        type: 'vector',
-      });
-
-      // Add 3D buildings layer :cite[1]
-      mapInstance.addLayer(
-        {
-          'id': '3d-buildings',
-          'source': 'openfreemap',
-          'source-layer': 'building',
-          'type': 'fill-extrusion',
-          'minzoom': 13, // Reduced from 15 to show buildings at lower zoom levels
-          'filter': ['!=', ['get', 'hide_3d'], true],
-          'paint': {
-            'fill-extrusion-color': [
-              'interpolate',
-              ['linear'],
-              ['get', 'render_height'], 
-              0, 'lightgray', 
-              200, 'royalblue', 
-              400, 'lightblue'
-            ],
-            'fill-extrusion-height': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              13,
-              0,
-              16,
-              ['get', 'render_height']
-            ],
-            'fill-extrusion-base': [
-              'case',
-              ['>=', ['get', 'zoom'], 16],
-              ['get', 'render_min_height'], 
-              0
-            ],
-            'fill-extrusion-opacity': 0.9
-          }
-        },
-        labelLayerId
-      );
-
-      setBuildingLayerAdded(true);
-      console.log('3D buildings layer added successfully');
-    } catch (error) {
-      console.error('Failed to add 3D buildings layer:', error);
-    }
-  }, [buildingLayerAdded]);
-
-  // Toggle 3D view with buildings
-  const toggle3DView = useCallback(() => {
-    if (map) {
-      setIs3DView(prev => {
-        const newValue = !prev;
-        
-        if (newValue) {
-          // Enable 3D view
-          map.easeTo({
-            pitch: 45,
-            bearing: -17.6,
-            duration: 1000,
-            zoom: 15 // Zoom in for better 3D effect
-          });
-          
-          // Ensure 3D buildings layer is added
-          if (!buildingLayerAdded) {
-            add3DBuildingsLayer(map);
-          }
-        } else {
-          // Return to 2D view
-          map.easeTo({
-            pitch: 0,
-            bearing: 0,
-            duration: 1000
-          });
-        }
-        
-        return newValue;
-      });
-    }
-  }, [map, buildingLayerAdded, add3DBuildingsLayer]);
+  }, [isLoaded, map, currentTileServer]);
 
   // Update user location marker when location changes
   useEffect(() => {
@@ -180,27 +139,74 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         userLocationMarker.remove();
       }
       
-      // Create a pulsating blue dot for user location (Google Maps style)
+      // Create a new marker for user location
       const el = document.createElement('div');
       el.className = 'user-location-marker';
-      el.innerHTML = `
-        <div class="pulsating-circle"></div>
-        <div class="location-dot"></div>
-      `;
+      el.innerHTML = '<i class="fas fa-circle" style="color: #4285F4; font-size: 16px;"></i>';
+      el.style.cursor = 'pointer';
       
-      const marker = new window.maplibregl.Marker(el, { offset: [0, 0] })
+      const marker = new window.maplibregl.Marker(el)
         .setLngLat([userLocation.lng, userLocation.lat])
         .addTo(map);
       
       setUserLocationMarker(marker);
       
-      // Add accuracy circle
-      if (map.getSource('accuracy-circle')) {
-        map.removeLayer('accuracy-circle');
-        map.removeSource('accuracy-circle');
+      // Add accuracy circle if available
+      if (userLocation.accuracy) {
+        if (radiusCircle) {
+          map.removeLayer('accuracy-circle');
+          map.removeSource('accuracy-circle');
+        }
+        
+        map.addSource('accuracy-circle', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [userLocation.lng, userLocation.lat]
+            },
+            properties: {
+              radius: userLocation.accuracy
+            }
+          }
+        });
+        
+        map.addLayer({
+          id: 'accuracy-circle',
+          type: 'circle',
+          source: 'accuracy-circle',
+          paint: {
+            'circle-radius': {
+              stops: [
+                [0, 0],
+                [20, userLocation.accuracy]
+              ],
+              base: 2
+            },
+            'circle-color': '#4285F4',
+            'circle-opacity': 0.2,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#4285F4'
+          }
+        });
+        
+        setRadiusCircle('accuracy-circle');
+      }
+    }
+  }, [map, userLocation]);
+
+  // Draw radius circle when radius changes
+  useEffect(() => {
+    if (map && userLocation && radius) {
+      // Remove existing radius circle
+      if (map.getLayer('radius-circle')) {
+        map.removeLayer('radius-circle');
+        map.removeSource('radius-circle');
       }
       
-      map.addSource('accuracy-circle', {
+      // Add new radius circle
+      map.addSource('radius-circle', {
         type: 'geojson',
         data: {
           type: 'Feature',
@@ -209,162 +215,84 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
             coordinates: [userLocation.lng, userLocation.lat]
           },
           properties: {
-            radius: userLocation.accuracy || 20
-          }
-        }
-      });
-      
-      if (!map.getLayer('accuracy-circle')) {
-        map.addLayer({
-          id: 'accuracy-circle',
-          type: 'circle',
-          source: 'accuracy-circle',
-          paint: {
-            'circle-radius': ['get', 'radius'],
-            'circle-color': '#4285F4',
-            'circle-opacity': 0.2,
-            'circle-stroke-width': 1,
-            'circle-stroke-color': '#4285F4'
-          }
-        });
-      }
-    }
-  }, [map, userLocation]);
-
-  // Draw radius circle and filter locations
-  useEffect(() => {
-    if (map && userLocation && radius) {
-      // Remove existing radius circle
-      if (map.getLayer('search-radius-circle')) {
-        map.removeLayer('search-radius-circle');
-        map.removeSource('search-radius-circle');
-      }
-      
-      if (map.getLayer('search-radius-fill')) {
-        map.removeLayer('search-radius-fill');
-        map.removeSource('search-radius-fill');
-      }
-      
-      // Calculate circle coordinates
-      const circlePoints = [];
-      const steps = 72; // Number of points to create a smooth circle
-      
-      for (let i = 0; i <= steps; i++) {
-        const angle = (i / steps) * 2 * Math.PI;
-        const lat = userLocation.lat + (radius / 111.32) * Math.cos(angle);
-        const lng = userLocation.lng + (radius / (111.32 * Math.cos(userLocation.lat * (Math.PI / 180)))) * Math.sin(angle);
-        circlePoints.push([lng, lat]);
-      }
-      
-      // Close the circle
-      circlePoints.push(circlePoints[0]);
-      
-      map.addSource('search-radius-circle', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: circlePoints
+            radius: radius * 1000 // Convert km to meters
           }
         }
       });
       
       map.addLayer({
-        id: 'search-radius-circle',
-        type: 'line',
-        source: 'search-radius-circle',
+        id: 'radius-circle',
+        type: 'circle',
+        source: 'radius-circle',
         paint: {
-          'line-color': '#FF5722',
-          'line-width': 2,
-          'line-opacity': 0.7,
-          'line-dasharray': [2, 2]
-        }
-      });
-      
-      // Fill the circle
-      map.addSource('search-radius-fill', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [circlePoints]
-          }
-        }
-      });
-      
-      map.addLayer({
-        id: 'search-radius-fill',
-        type: 'fill',
-        source: 'search-radius-fill',
-        paint: {
-          'fill-color': '#FF5722',
-          'fill-opacity': 0.1
-        }
-      });
-      
-      // Filter and highlight locations within radius
-      const locationsWithinRadius = findLocationsWithinRadius(
-        locations, 
-        userLocation.lat, 
-        userLocation.lng, 
-        radius
-      );
-      
-      // Update markers visibility
-      markers.forEach(marker => {
-        const location = locations.find(l => 
-          l.coordinates.lat === marker._lngLat.lat && 
-          l.coordinates.lng === marker._lngLat.lng
-        );
-        
-        if (location) {
-          const isWithinRadius = locationsWithinRadius.some(l => l.id === location.id);
-          marker.getElement().style.display = isWithinRadius ? 'block' : 'none';
-          
-          // Add highlight effect for locations within radius
-          if (isWithinRadius) {
-            marker.getElement().style.filter = 'drop-shadow(0px 0px 8px rgba(255, 87, 34, 0.8))';
-            marker.getElement().style.zIndex = '10';
-          } else {
-            marker.getElement().style.filter = '';
-            marker.getElement().style.zIndex = '1';
-          }
+          'circle-radius': {
+            stops: [
+              [0, 0],
+              [20, radius * 1000]
+            ],
+            base: 2
+          },
+          'circle-color': '#FF9800',
+          'circle-opacity': 0.2,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FF9800'
         }
       });
     }
-  }, [map, userLocation, radius, locations]);
+  }, [map, userLocation, radius]);
 
-  // Add Google Maps-style markers
   useEffect(() => {
     if (map) {
       // Clear existing markers
       markers.forEach(marker => marker.remove());
       
       const newMarkers = locations.map(location => {
-        // Create Google Maps-style marker
         const el = document.createElement('div');
-        el.className = 'google-maps-marker';
-        el.innerHTML = `
-          <div class="marker-pin">
-            <i class="fas ${getCategoryIcon(location.category)}"></i>
-          </div>
-          <div class="marker-label">${location.title}</div>
-        `;
-        
+        el.className = 'marker';
+        el.style.backgroundImage = `url(https://maps.google.com/mapfiles/ms/icons/${getMarkerColor(location.category)}-dot.png)`;
+        el.style.width = '30px';
+        el.style.height = '30px';
+        el.style.backgroundSize = 'cover';
         el.style.cursor = 'pointer';
 
-        const marker = new window.maplibregl.Marker(el, {
-          offset: [0, -25]
-        })
+        const marker = new window.maplibregl.Marker(el)
           .setLngLat([location.coordinates.lng, location.coordinates.lat])
           .addTo(map);
 
-        // Click event to select location
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
+        el.addEventListener('click', () => {
           onLocationSelect(location);
+          // Add to selected locations for route planning
+          setSelectedLocations(prev => [...prev, location]);
+        });
+
+        let hoverPopup = null;
+        
+        el.addEventListener('mouseenter', () => {
+          // Remove any existing popup
+          if (popup) {
+            popup.remove();
+          }
+          
+          // Create new popup
+          hoverPopup = new window.maplibregl.Popup({ offset: 25 })
+            .setLngLat([location.coordinates.lng, location.coordinates.lat])
+            .setHTML(`
+              <div class="p-2 max-w-xs">
+                <h3 class="font-bold text-sm">${location.title}</h3>
+                <img src="${location.image}" alt="${location.title}" class="w-full h-24 object-cover mt-2 rounded">
+                <p class="text-xs mt-1">${location.location}</p>
+              </div>
+            `)
+            .addTo(map);
+            
+          setPopup(hoverPopup);
+        });
+
+        el.addEventListener('mouseleave', () => {
+          if (hoverPopup) {
+            hoverPopup.remove();
+            setPopup(null);
+          }
         });
 
         return marker;
@@ -374,22 +302,16 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     }
   }, [map, locations]);
 
-  // Get category icon
-  const getCategoryIcon = (category) => {
-    const icons = {
-      beach: 'fa-umbrella-beach',
-      cultural: 'fa-landmark',
-      wildlife: 'fa-paw',
-      adventure: 'fa-hiking',
-      restaurant: 'fa-utensils',
-      hotel: 'fa-hotel',
-      shopping: 'fa-shopping-cart',
-      default: 'fa-map-marker-alt'
+  const getMarkerColor = (category) => {
+    const colors = {
+      beach: 'blue',
+      cultural: 'yellow',
+      wildlife: 'green',
+      adventure: 'purple'
     };
-    return icons[category] || icons.default;
+    return colors[category] || 'red';
   };
 
-  // Calculate route with multiple stops
   const calculateRoute = async (waypoints, mode = travelMode) => {
     if (!map || waypoints.length < 2) return;
 
@@ -398,7 +320,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       const coordinates = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
       
       const response = await fetch(
-        `https://router.project-osrm.org/route/v1/${getOSRMMode(mode)}/${coordinates}?overview=full&geometries=geojson&steps=true`
+        `https://router.project-osrm.org/route/v1/${getOSRMMode(mode)}/${coordinates}?overview=full&geometries=geojson`
       );
       
       const data = await response.json();
@@ -431,9 +353,9 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#4285F4',
+            'line-color': '#3887be',
             'line-width': 5,
-            'line-opacity': 0.7
+            'line-opacity': 0.75
           }
         });
         
@@ -452,7 +374,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     }
   };
 
-  // Get OSRM travel mode
   const getOSRMMode = (mode) => {
     const modes = {
       DRIVING: 'driving',
@@ -475,12 +396,48 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     }
   };
 
+  const calculateMultiPointRoute = () => {
+    if (selectedLocations.length < 2) {
+      alert('Please select at least 2 locations for route planning');
+      return;
+    }
+    
+    // If user location is available, start from there
+    const waypoints = userLocation ? [userLocation, ...selectedLocations.map(l => l.coordinates)] : 
+      selectedLocations.map(l => l.coordinates);
+    
+    calculateRoute(waypoints);
+  };
+
   const clearRoute = () => {
     if (map && routeLayer) {
       map.removeLayer(routeLayer);
       map.removeSource(routeLayer);
       setRouteLayer(null);
       setRouteInfo(null);
+      setSelectedLocations([]);
+    }
+  };
+
+  const toggle3DView = () => {
+    if (map) {
+      setIs3DView(prev => {
+        const newValue = !prev;
+        if (newValue) {
+          map.easeTo({
+            pitch: 60,
+            bearing: 0,
+            duration: 1000
+          });
+        } else {
+          map.easeTo({
+            pitch: 0,
+            bearing: 0,
+            duration: 1000
+          });
+        }
+        return newValue;
+      });
     }
   };
 
@@ -488,7 +445,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     if (map) {
       map.flyTo({
         center: [SRI_LANKA_CENTER.lng, SRI_LANKA_CENTER.lat],
-        zoom: 8,
+        zoom: 7,
         pitch: 0,
         bearing: 0,
         duration: 2000
@@ -505,12 +462,15 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     }
     
     // Find locations within selected radius
-    const nearestLocations = findLocationsWithinRadius(
-      locations, 
-      userLocation.lat, 
-      userLocation.lng, 
-      radius
-    );
+    const nearestLocations = locations.filter(location => {
+      const distance = calculateDistance(
+        userLocation.lat, 
+        userLocation.lng,
+        location.coordinates.lat,
+        location.coordinates.lng
+      );
+      return distance <= radius;
+    });
     
     // Sort by distance
     nearestLocations.sort((a, b) => {
@@ -539,15 +499,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       if (location) {
         const isNearby = nearestLocations.includes(location);
         marker.getElement().style.display = isNearby ? 'block' : 'none';
-        
-        // Add highlight effect for locations within radius
-        if (isNearby) {
-          marker.getElement().style.filter = 'drop-shadow(0px 0px 8px rgba(255, 87, 34, 0.8))';
-          marker.getElement().style.zIndex = '10';
-        } else {
-          marker.getElement().style.filter = '';
-          marker.getElement().style.zIndex = '1';
-        }
       }
     });
     
@@ -610,11 +561,44 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         watchingLocation={watching}
         startWatchingLocation={startWatchingLocation}
         stopWatchingLocation={stopWatchingLocation}
+        selectedLocations={selectedLocations}
+        calculateMultiPointRoute={calculateMultiPointRoute}
       />
       
       {/* Route Information Panel */}
       {routeInfo && (
         <RouteInfoPanel routeInfo={routeInfo} onClose={clearRoute} />
+      )}
+      
+      {/* Selected Locations Panel */}
+      {selectedLocations.length > 0 && (
+        <div className="absolute top-20 right-4 z-10 bg-white p-4 rounded-lg shadow-lg max-w-sm">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-lg">Selected Locations</h3>
+            <button onClick={() => setSelectedLocations([])} className="text-gray-500 hover:text-gray-700">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          <ul className="space-y-2">
+            {selectedLocations.map((location, index) => (
+              <li key={index} className="flex items-center justify-between">
+                <span className="text-sm">{location.title}</span>
+                <button 
+                  onClick={() => setSelectedLocations(prev => prev.filter((_, i) => i !== index))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button 
+            onClick={calculateMultiPointRoute}
+            className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg"
+          >
+            Calculate Route
+          </button>
+        </div>
       )}
       
       {/* Location Categories */}

@@ -5,6 +5,7 @@ export const useLocationTracking = () => {
   const [locationError, setLocationError] = useState(null);
   const [watching, setWatching] = useState(false);
   const [watchId, setWatchId] = useState(null);
+  const [shareSession, setShareSession] = useState(null);
 
   const getUserLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -19,7 +20,11 @@ export const useLocationTracking = () => {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-            accuracy: position.coords.accuracy
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude,
+            heading: position.coords.heading,
+            speed: position.coords.speed,
+            timestamp: position.timestamp
           };
           setUserLocation(location);
           setLocationError(null);
@@ -33,7 +38,7 @@ export const useLocationTracking = () => {
         { 
           enableHighAccuracy: true, 
           timeout: 10000,
-          maximumAge: 60000 
+          maximumAge: 0 
         }
       );
     });
@@ -47,12 +52,24 @@ export const useLocationTracking = () => {
 
     const id = navigator.geolocation.watchPosition(
       (position) => {
-        setUserLocation({
+        const location = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        });
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude,
+          heading: position.coords.heading,
+          speed: position.coords.speed,
+          timestamp: position.timestamp
+        };
+        setUserLocation(location);
         setLocationError(null);
+        
+        // Emit event for real-time sharing
+        if (shareSession) {
+          document.dispatchEvent(new CustomEvent('locationUpdated', { 
+            detail: location 
+          }));
+        }
       },
       (error) => {
         setLocationError('Unable to track your location');
@@ -60,14 +77,14 @@ export const useLocationTracking = () => {
       },
       { 
         enableHighAccuracy: true, 
-        maximumAge: 10000,
+        maximumAge: 1000,
         timeout: 5000
       }
     );
 
     setWatchId(id);
     setWatching(true);
-  }, []);
+  }, [shareSession]);
 
   const stopWatchingLocation = useCallback(() => {
     if (watchId) {
@@ -77,12 +94,45 @@ export const useLocationTracking = () => {
     }
   }, [watchId]);
 
+  const startSharingLocation = useCallback((duration = 60 * 60 * 1000) => {
+    if (!userLocation) {
+      alert('Please enable location tracking first');
+      return false;
+    }
+    
+    const sessionId = Math.random().toString(36).substring(2, 15);
+    setShareSession({
+      id: sessionId,
+      startedAt: Date.now(),
+      expiresAt: Date.now() + duration
+    });
+    
+    // Start watching location if not already
+    if (!watching) {
+      startWatchingLocation();
+    }
+    
+    return sessionId;
+  }, [userLocation, watching, startWatchingLocation]);
+
+  const stopSharingLocation = useCallback(() => {
+    setShareSession(null);
+    
+    // If no other reason to watch location, stop it
+    if (watching) {
+      stopWatchingLocation();
+    }
+  }, [watching, stopWatchingLocation]);
+
   return {
     userLocation,
     locationError,
     watching,
+    shareSession,
     getUserLocation,
     startWatchingLocation,
-    stopWatchingLocation
+    stopWatchingLocation,
+    startSharingLocation,
+    stopSharingLocation
   };
 };

@@ -11,9 +11,7 @@ const MapControls = ({
   onRadiusChange,
   watchingLocation,
   startWatchingLocation,
-  stopWatchingLocation,
-  selectedLocations,
-  calculateMultiPointRoute
+  stopWatchingLocation
 }) => {
   const [travelMode, setTravelMode] = useState('DRIVING');
   const [radius, setRadius] = useState(50);
@@ -36,53 +34,47 @@ const MapControls = ({
   ];
 
   return (
-    <div className="absolute top-4 left-4 z-10 flex flex-col space-y-2">
+    <div className="map-controls">
       <button 
         onClick={toggle3DView} 
-        className="bg-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-gray-100 flex items-center"
+        className={`control-button ${is3DView ? 'active' : ''}`}
+        title={is3DView ? 'Switch to 2D View' : 'Switch to 3D View'}
       >
-        <i className={`fas ${is3DView ? 'fa-map' : 'fa-cube'} mr-2`}></i>
-        {is3DView ? '2D View' : '3D View'}
+        <i className={`fas ${is3DView ? 'fa-map' : 'fa-cube'}`}></i>
       </button>
       
       <button 
         onClick={resetView} 
-        className="bg-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-gray-100 flex items-center"
+        className="control-button"
+        title="Reset View"
       >
-        <i className="fas fa-globe-asia mr-2"></i>Reset View
+        <i className="fas fa-globe-asia"></i>
       </button>
       
       <button 
         onClick={findNearestLocations} 
-        className="bg-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-gray-100 flex items-center"
+        className="control-button"
+        title={userLocation ? 'Find Nearby Places' : 'Enable Location to Find Nearby'}
+        disabled={!userLocation}
       >
-        <i className="fas fa-location-arrow mr-2"></i>
-        {userLocation ? 'Nearby Places' : 'Find Nearby'}
+        <i className="fas fa-location-arrow"></i>
       </button>
       
       <button 
         onClick={watchingLocation ? stopWatchingLocation : startWatchingLocation} 
-        className="bg-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-gray-100 flex items-center"
+        className={`control-button ${watchingLocation ? 'active' : ''}`}
+        title={watchingLocation ? 'Stop Tracking' : 'Track Location'}
       >
-        <i className={`fas ${watchingLocation ? 'fa-location-crosshairs' : 'fa-location-dot'} mr-2`}></i>
-        {watchingLocation ? 'Stop Tracking' : 'Track Location'}
+        <i className={`fas ${watchingLocation ? 'fa-location-crosshairs' : 'fa-location-dot'}`}></i>
       </button>
       
       <button 
         onClick={clearRoute} 
-        className="bg-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-gray-100 flex items-center"
+        className="control-button"
+        title="Clear Route"
       >
-        <i className="fas fa-route mr-2"></i>Clear Route
+        <i className="fas fa-route"></i>
       </button>
-      
-      {selectedLocations.length > 0 && (
-        <button 
-          onClick={calculateMultiPointRoute} 
-          className="bg-emerald-600 text-white border border-gray-300 py-2 px-3 font-sans shadow-md rounded cursor-pointer z-10 hover:bg-emerald-700 flex items-center"
-        >
-          <i className="fas fa-route mr-2"></i>Calculate Route ({selectedLocations.length})
-        </button>
-      )}
       
       {/* Travel Mode Selection */}
       <div className="bg-white p-2 rounded-lg shadow-md">

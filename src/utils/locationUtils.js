@@ -28,3 +28,20 @@ export const findLocationsWithinRadius = (locations, centerLat, centerLng, radiu
     return distance <= radiusKm;
   });
 };
+
+// Generate circle coordinates for radius visualization
+export const generateCircleCoordinates = (centerLat, centerLng, radiusKm, points = 72) => {
+  const coordinates = [];
+  
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const lat = centerLat + (radiusKm / 111.32) * Math.cos(angle);
+    const lng = centerLng + (radiusKm / (111.32 * Math.cos(centerLat * (Math.PI / 180)))) * Math.sin(angle);
+    coordinates.push([lng, lat]);
+  }
+  
+  // Close the circle
+  coordinates.push(coordinates[0]);
+  
+  return coordinates;
+};
