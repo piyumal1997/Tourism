@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export const useLocationTracking = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [watching, setWatching] = useState(false);
-  const [watchId, setWatchId] = useState(null);
-  const [shareSession, setShareSession] = useState(null);
+  const watchIdRef = useRef(null);
+  const [locationHistory, setLocationHistory] = useState([]);
 
   const getUserLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -31,7 +31,8 @@ export const useLocationTracking = () => {
           resolve(location);
         },
         (error) => {
-          setLocationError('Unable to retrieve your location');
+          const errorMessage = getGeolocationErrorMessage(error);
+          setLocationError(errorMessage);
           console.error('Geolocation error:', error);
           reject(error);
         },
@@ -47,7 +48,12 @@ export const useLocationTracking = () => {
   const startWatchingLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser');
-      return;
+      return false;
+    }
+
+    if (watchIdRef.current) {
+      // Already watching
+      return true;
     }
 
     const id = navigator.geolocation.watchPosition(
@@ -61,18 +67,20 @@ export const useLocationTracking = () => {
           speed: position.coords.speed,
           timestamp: position.timestamp
         };
+        
         setUserLocation(location);
         setLocationError(null);
         
-        // Emit event for real-time sharing
-        if (shareSession) {
-          document.dispatchEvent(new CustomEvent('locationUpdated', { 
-            detail: location 
-          }));
-        }
+        // Add to location history
+        setLocationHistory(prev => {
+          const newHistory = [...prev, location];
+          // Keep only last 100 positions
+          return newHistory.slice(-100);
+        });
       },
       (error) => {
-        setLocationError('Unable to track your location');
+        const errorMessage = getGeolocationErrorMessage(error);
+        setLocationError(errorMessage);
         console.error('Geolocation error:', error);
       },
       { 
@@ -82,57 +90,53 @@ export const useLocationTracking = () => {
       }
     );
 
-    setWatchId(id);
+    watchIdRef.current = id;
     setWatching(true);
-  }, [shareSession]);
+    return true;
+  }, []);
 
   const stopWatchingLocation = useCallback(() => {
-    if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
+    if (watchIdRef.current) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
       setWatching(false);
-      setWatchId(null);
     }
-  }, [watchId]);
+  }, []);
 
-  const startSharingLocation = useCallback((duration = 60 * 60 * 1000) => {
-    if (!userLocation) {
-      alert('Please enable location tracking first');
-      return false;
-    }
-    
-    const sessionId = Math.random().toString(36).substring(2, 15);
-    setShareSession({
-      id: sessionId,
-      startedAt: Date.now(),
-      expiresAt: Date.now() + duration
-    });
-    
-    // Start watching location if not already
-    if (!watching) {
-      startWatchingLocation();
-    }
-    
-    return sessionId;
-  }, [userLocation, watching, startWatchingLocation]);
-
-  const stopSharingLocation = useCallback(() => {
-    setShareSession(null);
-    
-    // If no other reason to watch location, stop it
+  const toggleWatchingLocation = useCallback(() => {
     if (watching) {
       stopWatchingLocation();
+    } else {
+      startWatchingLocation();
     }
-  }, [watching, stopWatchingLocation]);
+  }, [watching, startWatchingLocation, stopWatchingLocation]);
+
+  const clearLocationHistory = useCallback(() => {
+    setLocationHistory([]);
+  }, []);
+
+  const getGeolocationErrorMessage = (error) => {
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        return 'Location access denied. Please enable location permissions in your browser settings.';
+      case error.POSITION_UNAVAILABLE:
+        return 'Location information is unavailable.';
+      case error.TIMEOUT:
+        return 'The request to get your location timed out.';
+      default:
+        return 'An unknown error occurred while getting your location.';
+    }
+  };
 
   return {
     userLocation,
     locationError,
     watching,
-    shareSession,
+    locationHistory,
     getUserLocation,
     startWatchingLocation,
     stopWatchingLocation,
-    startSharingLocation,
-    stopSharingLocation
+    toggleWatchingLocation,
+    clearLocationHistory
   };
 };
