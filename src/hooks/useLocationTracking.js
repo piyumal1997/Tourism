@@ -4,8 +4,21 @@ export const useLocationTracking = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [watching, setWatching] = useState(false);
-  const watchIdRef = useRef(null);
   const [locationHistory, setLocationHistory] = useState([]);
+  const watchIdRef = useRef(null);
+
+  const getGeolocationErrorMessage = (error) => {
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        return 'Location access denied. Please enable location permissions in your browser settings.';
+      case error.POSITION_UNAVAILABLE:
+        return 'Location information is unavailable.';
+      case error.TIMEOUT:
+        return 'The request to get your location timed out.';
+      default:
+        return 'An unknown error occurred while getting your location.';
+    }
+  };
 
   const getUserLocation = useCallback(() => {
     return new Promise((resolve, reject) => {
@@ -114,19 +127,6 @@ export const useLocationTracking = () => {
   const clearLocationHistory = useCallback(() => {
     setLocationHistory([]);
   }, []);
-
-  const getGeolocationErrorMessage = (error) => {
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        return 'Location access denied. Please enable location permissions in your browser settings.';
-      case error.POSITION_UNAVAILABLE:
-        return 'Location information is unavailable.';
-      case error.TIMEOUT:
-        return 'The request to get your location timed out.';
-      default:
-        return 'An unknown error occurred while getting your location.';
-    }
-  };
 
   return {
     userLocation,

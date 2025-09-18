@@ -1,11 +1,9 @@
 import { useState, useMemo } from 'react';
 import MapSection from '../../components/map/MapSection/MapSection';
-import LocationModal from '../../components/map/LocationModal/LocationModal';
 import SearchBar from '../../components/search/SearchBar';
 import AdvancedFilters from '../../components/map/AdvancedFilters/AdvancedFilters';
 import { locations } from '../../utils/constants';
 import { filterLocations } from '../../utils/searchUtils';
-import { useLocation } from '../../contexts/LocationContext';
 
 const Destinations = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +15,6 @@ const Destinations = () => {
     highlights: []
   });
   const [showFilters, setShowFilters] = useState(false);
-  const { selectedLocation, setSelectedLocation } = useLocation();
 
   const filteredLocations = useMemo(() => {
     return filterLocations(locations, searchTerm, filters);
@@ -32,7 +29,7 @@ const Destinations = () => {
   };
 
   return (
-    <main className="pt-20">
+    <main className="pt-20 google-maps-theme">
       {/* Hero Section with Search */}
       <section className="relative h-96 bg-gradient-to-r from-emerald-500 to-blue-500 flex items-center justify-center">
         <div className="absolute inset-0 bg-black/30"></div>
@@ -61,21 +58,12 @@ const Destinations = () => {
         />
       )}
 
-      {/* Map Section */}
+      {/* Map Section - Location handling is now entirely within this component */}
       <MapSection 
         locations={filteredLocations} 
-        onLocationSelect={setSelectedLocation}
         searchTerm={searchTerm}
         filters={filters}
       />
-
-      {/* Location Modal */}
-      {selectedLocation && (
-        <LocationModal 
-          location={selectedLocation} 
-          onClose={() => setSelectedLocation(null)} 
-        />
-      )}
     </main>
   );
 };
