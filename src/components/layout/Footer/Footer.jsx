@@ -4,6 +4,12 @@ import { Link, useLocation } from "react-router-dom";
 const Footer = () => {
   const location = useLocation();
   const currentYear = new Date().getFullYear();
+  const isFullScreenMap = location.pathname === '/destinations/map';
+
+  // Don't render footer on full-screen map page
+  if (isFullScreenMap) {
+    return null;
+  }
 
   // Reusable contact information
   const CONTACT_INFO = {
@@ -16,6 +22,8 @@ const Footer = () => {
   const NAV_LINKS = [
     { path: "/", label: "Home" },
     { path: "/destinations", label: "Destinations" },
+    { path: "/destinations/map", label: "Interactive Map" },
+    { path: "/destinations/route-planner", label: "Route Planner" },
     { path: "/experiences", label: "Experiences" },
     { path: "/travel-tips", label: "Travel Tips" }
   ];

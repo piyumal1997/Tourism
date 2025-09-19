@@ -11,6 +11,8 @@ const Experiences = lazy(() => import("../pages/Experiences/Experiences"));
 const TravelTips = lazy(() => import("../pages/TravelTips/TravelTips"));
 const LocationDetail = lazy(() => import("../pages/LocationDetail/LocationDetail"));
 const NotFound = lazy(() => import("../pages/NotFound/NotFound"));
+const FullScreenMap = lazy(() => import("../pages/Destinations/FullScreenMap"));
+const RoutePlanner = lazy(() => import("../pages/Destinations/RoutePlanner"));
 
 const AppRouter = () => {
   return (
@@ -23,16 +25,14 @@ const AppRouter = () => {
     >
       <ScrollToTop />
       <Routes>
-        {/* Main layout wrapper for all routes */}
         <Route path="/" element={<Layout />}>
-          {/* Core application routes */}
           <Route index element={<Home />} />
           <Route path="destinations" element={<Destinations />} />
+          <Route path="destinations/map" element={<FullScreenMap />} />
+          <Route path="destinations/route-planner" element={<RoutePlanner />} />
           <Route path="experiences" element={<Experiences />} />
           <Route path="travel-tips" element={<TravelTips />} />
           <Route path="location/:id" element={<LocationDetail />} />
-          
-          {/* Catch-all 404 route */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

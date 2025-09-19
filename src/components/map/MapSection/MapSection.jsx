@@ -11,6 +11,7 @@ import NavigationPanel from '../NavigationPanel/NavigationPanel';
 import LocationPanel from '../LocationPanel/LocationPanel';
 import TrafficLayer from '../TrafficLayer/TrafficLayer';
 import MultiStopRoutePlanner from '../MultiStopRoutePlanner/MultiStopRoutePlanner';
+import '../../../assets/styles/map.css';
 
 const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
   const mapRef = useRef(null);

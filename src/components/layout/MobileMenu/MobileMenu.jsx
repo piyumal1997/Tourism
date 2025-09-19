@@ -28,10 +28,24 @@ const MobileMenu = ({ isOpen, onClose, currentPath }) => {
           </Link>
           <Link 
             to="/destinations" 
-            className={`block py-3 font-medium border-b ${currentPath === '/destinations' ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'}`}
+            className={`block py-3 font-medium border-b ${currentPath.startsWith('/destinations') ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'}`}
             onClick={handleNavigation}
           >
             Destinations
+          </Link>
+          <Link 
+            to="/destinations/map" 
+            className={`block py-3 font-medium border-b pl-4 ${currentPath === '/destinations/map' ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'}`}
+            onClick={handleNavigation}
+          >
+            Interactive Map
+          </Link>
+          <Link 
+            to="/destinations/route-planner" 
+            className={`block py-3 font-medium border-b pl-4 ${currentPath === '/destinations/route-planner' ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'}`}
+            onClick={handleNavigation}
+          >
+            Route Planner
           </Link>
           <Link 
             to="/experiences" 

@@ -5,6 +5,15 @@ import { useMobileMenu } from '../../../hooks/useMobileMenu';
 const Header = () => {
   const { isMobileMenuOpen, openMobileMenu, closeMobileMenu } = useMobileMenu();
   const location = useLocation();
+  const isFullScreenMap = location.pathname === '/destinations/map';
+
+  // Don't render header on full-screen map page
+  if (isFullScreenMap) {
+    return null;
+  }
+
+  // Check if current path is under destinations
+  const isDestinationsActive = location.pathname.startsWith('/destinations');
 
   return (
     <>
@@ -15,10 +24,30 @@ const Header = () => {
             <h1 className="text-2xl font-bold text-gray-800">Explore <span className="text-emerald-600">Sri Lanka</span></h1>
           </Link>
           <nav className="hidden md:flex space-x-8">
-            <Link to="/" className={`${location.pathname === '/' ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}>Home</Link>
-            <Link to="/destinations" className={`${location.pathname === '/destinations' ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}>Destinations</Link>
-            <Link to="/experiences" className={`${location.pathname === '/experiences' ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}>Experiences</Link>
-            <Link to="/travel-tips" className={`${location.pathname === '/travel-tips' ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}>Travel Tips</Link>
+            <Link 
+              to="/" 
+              className={`${location.pathname === '/' ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/destinations" 
+              className={`${isDestinationsActive ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}
+            >
+              Destinations
+            </Link>
+            <Link 
+              to="/experiences" 
+              className={`${location.pathname.startsWith('/experiences') ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}
+            >
+              Experiences
+            </Link>
+            <Link 
+              to="/travel-tips" 
+              className={`${location.pathname.startsWith('/travel-tips') ? 'text-emerald-600' : 'text-gray-700'} hover:text-emerald-600 font-medium`}
+            >
+              Travel Tips
+            </Link>
           </nav>
           <button onClick={openMobileMenu} className="md:hidden text-gray-700">
             <i className="fas fa-bars text-2xl"></i>
@@ -26,7 +55,11 @@ const Header = () => {
         </div>
       </header>
       
-      <MobileMenu isOpen={isMobileMenuOpen} onClose={closeMobileMenu} currentPath={location.pathname} />
+      <MobileMenu 
+        isOpen={isMobileMenuOpen} 
+        onClose={closeMobileMenu} 
+        currentPath={location.pathname} 
+      />
     </>
   );
 };

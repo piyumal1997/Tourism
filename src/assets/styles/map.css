@@ -375,6 +375,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: flex-start; /* Keep content left-aligned within groups */
+  width: max-content; /* Ensure groups only take needed width */
+  margin-left: auto; /* Push groups to the right */
 }
 
 .map-control-button {
