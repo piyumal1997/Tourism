@@ -1,34 +1,108 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 const MapControls = ({ 
+  // Map control functions
   toggle3DView, 
   resetView, 
+  centerOnUserLocation,
+  
+  // State values
   is3DView, 
-  findNearestLocations, 
   userLocation, 
-  clearRoute,
   travelMode,
   radius,
-  setRadius,
   isTracking,
-  onTrackingToggle,
   locationsInRadius,
   showMultiStopPlanner,
-  setShowMultiStopPlanner,
   selectedLocations,
   routeOptions,
-  updateRouteOptions,
   showNearbyLocations,
-  onToggleNearbyLocations
+  
+  // State setters and handlers
+  setRadius,
+  onTrackingToggle,
+  setShowMultiStopPlanner,
+  updateRouteOptions,
+  onToggleNearbyLocations,
+  
+  // Additional functions
+  clearRoute,
+  map // Map instance
 }) => {
   const [showRadiusInfo, setShowRadiusInfo] = useState(false);
   const [showRouteOptions, setShowRouteOptions] = useState(false);
+  const [isCentering, setIsCentering] = useState(false);
 
+  // Handle radius change
   const handleRadiusChange = (e) => {
     const newRadius = parseInt(e.target.value);
     setRadius(newRadius);
   };
 
+  // Enhanced center on user location function
+  const handleCenterOnUserLocation = async () => {
+    if (!map) {
+      alert('Map not available. Please try again later.');
+      return;
+    }
+
+    // If user location is not available but tracking is enabled, try to get it
+    if (!userLocation && isTracking) {
+      alert('Location not available yet. Please wait for location services to initialize.');
+      return;
+    }
+
+    // If user location is not available and tracking is off, prompt to enable tracking
+    if (!userLocation && !isTracking) {
+      const enableTracking = confirm('Location tracking is disabled. Would you like to enable it to center on your current location?');
+      if (enableTracking) {
+        onTrackingToggle(); // Enable tracking
+        // Wait a moment for tracking to start
+        setTimeout(() => {
+          if (userLocation) {
+            centerMapToUserLocation();
+          } else {
+            alert('Please allow location permissions and ensure location services are enabled.');
+          }
+        }, 1000);
+      }
+      return;
+    }
+
+    // If we have user location, center the map
+    if (userLocation) {
+      centerMapToUserLocation();
+    }
+  };
+
+  // Center map to user location
+  const centerMapToUserLocation = () => {
+    try {
+      setIsCentering(true);
+      
+      // Use flyTo for smooth animation to current location
+      map.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 15,
+        bearing: 0,
+        pitch: 0,
+        duration: 1500,
+        essential: true
+      });
+
+      // Add slight delay for visual feedback
+      setTimeout(() => {
+        setIsCentering(false);
+      }, 1600);
+      
+    } catch (error) {
+      console.error('Error centering on location:', error);
+      setIsCentering(false);
+      alert('Failed to center on current location. Please try again.');
+    }
+  };
+
+  // Travel mode options
   const travelModes = [
     { key: 'DRIVING', label: 'Driving', icon: 'car' },
     { key: 'WALKING', label: 'Walking', icon: 'walking' },
@@ -36,6 +110,7 @@ const MapControls = ({
     { key: 'TRANSIT', label: 'Transit', icon: 'bus' }
   ];
 
+  // Handle route option changes
   const handleRouteOptionChange = (option) => {
     const newOptions = {
       ...routeOptions,
@@ -48,6 +123,16 @@ const MapControls = ({
     <div className="map-controls-container">
       {/* Main controls container */}
       <div className="map-control-group">
+        {/* Current Location Button - Google Maps style */}
+        <button 
+          onClick={handleCenterOnUserLocation} 
+          className={`map-control-button current-location-btn ${isCentering ? 'centering' : ''}`}
+          title="Center on current location"
+          disabled={isCentering}
+        >
+          <i className={`fas ${isCentering ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'}`}></i>
+        </button>
+        
         {/* 3D View Toggle */}
         <button 
           onClick={toggle3DView} 
@@ -61,7 +146,7 @@ const MapControls = ({
         <button 
           onClick={resetView} 
           className="map-control-button"
-          title="Reset View"
+          title="Reset to default view"
         >
           <i className="fas fa-globe-asia"></i>
         </button>
@@ -99,16 +184,16 @@ const MapControls = ({
         <button 
           onClick={clearRoute} 
           className="map-control-button"
-          title="Clear Route"
+          title="Clear current route"
         >
           <i className="fas fa-route"></i>
         </button>
         
-        {/* Multi-Stop Planner */}
+        {/* Multi-Stop Planner Toggle */}
         <button 
           onClick={() => setShowMultiStopPlanner(!showMultiStopPlanner)} 
           className={`map-control-button ${selectedLocations.length > 0 ? 'active' : ''}`}
-          title="Multi-Stop Route Planner"
+          title="Multi-stop route planner"
         >
           <i className="fas fa-route"></i>
           {selectedLocations.length > 0 && (
@@ -122,7 +207,7 @@ const MapControls = ({
         <button 
           onClick={() => setShowRouteOptions(!showRouteOptions)}
           className="map-control-button"
-          title="Route Options"
+          title="Route options"
         >
           <i className="fas fa-cog"></i>
         </button>
@@ -176,11 +261,11 @@ const MapControls = ({
         </div>
       )}
 
-      {/* Radius Control - Only show when nearby locations is enabled */}
+      {/* Radius Control - Only shown when nearby locations is enabled */}
       {showNearbyLocations && (
         <div className="map-control-group">
           <div className="flex items-center justify-between mb-2">
-            <label className="map-control-label">Radius: {radius} km</label>
+            <label className="map-control-label">Search Radius: {radius} km</label>
             <button 
               onClick={() => setShowRadiusInfo(!showRadiusInfo)}
               className="text-blue-500 text-sm"
@@ -210,7 +295,7 @@ const MapControls = ({
       {/* Travel Mode Selection */}
       <div className="map-control-group">
         <label className="map-control-label">Travel Mode</label>
-        <div className="grid grid-cols-2 gap-1">
+        <div className="grid grid-cols-1 gap-1">
           {travelModes.map(mode => (
             <button
               key={mode.key}

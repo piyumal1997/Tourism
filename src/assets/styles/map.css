@@ -363,11 +363,12 @@ body {
   z-index: 10;
   display: flex;
   flex-direction: column;
+   align-items: flex-end; /* Align all items to the right */
   gap: 12px;
 }
 
 .map-control-group {
-  background: white;
+  background: #ffffffa2;
   border-radius: 8px;
   box-shadow: var(--shadow);
   padding: 12px;
@@ -763,3 +764,17 @@ body {
 .category-restaurant { background: #FF6D00; }
 .category-hotel { background: #9C27B0; }
 .category-shopping { background: #009688; }
+
+/* Add to your existing CSS */
+.map-control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-control-button:disabled:hover {
+  background-color: #f3f4f6;
+}
+
+.fa-location-crosshairs {
+  font-size: 16px;
+}
