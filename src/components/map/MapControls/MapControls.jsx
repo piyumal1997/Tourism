@@ -17,7 +17,9 @@ const MapControls = ({
   setShowMultiStopPlanner,
   selectedLocations,
   routeOptions,
-  updateRouteOptions
+  updateRouteOptions,
+  showNearbyLocations,
+  onToggleNearbyLocations
 }) => {
   const [showRadiusInfo, setShowRadiusInfo] = useState(false);
   const [showRouteOptions, setShowRouteOptions] = useState(false);
@@ -78,19 +80,20 @@ const MapControls = ({
           <span className="text-xs mt-1 text-gray-600">Track</span>
         </div>
         
-        {/* Find Nearest Locations */}
-        <button 
-          onClick={findNearestLocations} 
-          className="map-control-button"
-          title="Find Nearby Locations"
-          disabled={!userLocation}
-          style={{ 
-            backgroundColor: userLocation ? '#fbbf24' : '#f3f4f6',
-            color: userLocation ? 'white' : '#9ca3af'
-          }}
-        >
-          <i className="fas fa-location-arrow"></i>
-        </button>
+        {/* Nearby Locations Toggle */}
+        <div className="flex flex-col items-center">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={showNearbyLocations} 
+              onChange={onToggleNearbyLocations}
+              className="sr-only peer" 
+              disabled={!isTracking || !userLocation}
+            />
+            <div className={`w-11 h-6 ${!isTracking || !userLocation ? 'bg-gray-300' : 'bg-gray-200'} peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600`}></div>
+          </label>
+          <span className="text-xs mt-1 text-gray-600">Nearby</span>
+        </div>
         
         {/* Clear Route */}
         <button 
@@ -173,34 +176,36 @@ const MapControls = ({
         </div>
       )}
 
-      {/* Radius Control */}
-      <div className="map-control-group">
-        <div className="flex items-center justify-between mb-2">
-          <label className="map-control-label">Radius: {radius} km</label>
-          <button 
-            onClick={() => setShowRadiusInfo(!showRadiusInfo)}
-            className="text-blue-500 text-sm"
-          >
-            <i className={`fas ${showRadiusInfo ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
-          </button>
-        </div>
-        
-        <input 
-          type="range" 
-          min="1" 
-          max="100" 
-          value={radius} 
-          onChange={handleRadiusChange}
-          className="map-control-slider"
-          disabled={!userLocation}
-        />
-        
-        {showRadiusInfo && (
-          <div className="mt-2 text-xs text-gray-600">
-            {locationsInRadius.length} locations within {radius} km radius
+      {/* Radius Control - Only show when nearby locations is enabled */}
+      {showNearbyLocations && (
+        <div className="map-control-group">
+          <div className="flex items-center justify-between mb-2">
+            <label className="map-control-label">Radius: {radius} km</label>
+            <button 
+              onClick={() => setShowRadiusInfo(!showRadiusInfo)}
+              className="text-blue-500 text-sm"
+            >
+              <i className={`fas ${showRadiusInfo ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+            </button>
           </div>
-        )}
-      </div>
+          
+          <input 
+            type="range" 
+            min="1" 
+            max="100" 
+            value={radius} 
+            onChange={handleRadiusChange}
+            className="map-control-slider"
+            disabled={!userLocation}
+          />
+          
+          {showRadiusInfo && (
+            <div className="mt-2 text-xs text-gray-600">
+              {locationsInRadius.length} locations within {radius} km radius
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Travel Mode Selection */}
       <div className="map-control-group">

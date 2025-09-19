@@ -33,7 +33,7 @@ const MultiStopRoutePlanner = ({
   return (
     <div className="multi-stop-planner">
       <div className="planner-header">
-        <h2 className="planner-title">Multi-Stop Route Planner</h2>
+        <h2 className="planner-title">Route Planner</h2>
         <button onClick={onClose} className="planner-close">
           <i className="fas fa-times"></i>
         </button>
@@ -43,7 +43,7 @@ const MultiStopRoutePlanner = ({
         {selectedLocations.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <i className="fas fa-route text-3xl mb-2"></i>
-            <p>Add locations to create a multi-stop route</p>
+            <p>Add locations to create a route</p>
           </div>
         ) : (
           selectedLocations.map((location, index) => (
@@ -75,7 +75,7 @@ const MultiStopRoutePlanner = ({
         <span className="text-sm text-gray-500">
           {selectedLocations.length} of 9 stops added
         </span>
-        {selectedLocations.length > 0 && (
+        {selectedLocations.length > 1 && (
           <button 
             onClick={() => setReordering(!reordering)}
             className="text-sm text-blue-500"
@@ -97,10 +97,10 @@ const MultiStopRoutePlanner = ({
         <button 
           onClick={onCalculateRoute}
           className="planner-button planner-button-primary"
-          disabled={selectedLocations.length < 2}
+          disabled={selectedLocations.length < 1}
         >
           <i className="fas fa-route"></i>
-          Calculate Route
+          {selectedLocations.length === 1 ? 'Get Directions' : 'Calculate Route'}
         </button>
       </div>
     </div>

@@ -34,6 +34,9 @@ const NavigationPanel = ({
     // In a real implementation, you would highlight the selected route on the map
   };
 
+  // Safe access to route steps to prevent undefined errors
+  const routeSteps = routeInfo?.steps || [];
+
   return (
     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-md bg-white rounded-xl shadow-xl z-10">
       <div className="p-4">
@@ -65,16 +68,16 @@ const NavigationPanel = ({
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="text-sm text-gray-500">Distance</div>
-            <div className="font-bold">{routeInfo.distance}</div>
+            <div className="font-bold">{routeInfo?.distance || 'N/A'}</div>
           </div>
           
           <div className="bg-gray-50 p-3 rounded-lg">
             <div className="text-sm text-gray-500">Duration</div>
-            <div className="font-bold">{routeInfo.duration}</div>
+            <div className="font-bold">{routeInfo?.duration || 'N/A'}</div>
           </div>
         </div>
         
-        {routeInfo.ecoFriendlyAlternative && (
+        {routeInfo?.ecoFriendlyAlternative && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
             <div className="flex items-center mb-2">
               <i className="fas fa-leaf text-green-500 mr-2"></i>
@@ -91,11 +94,11 @@ const NavigationPanel = ({
               </div>
               <div>
                 <div className="text-gray-500">Fuel Efficiency</div>
-                <div className="font-bold text-green-600">{routeInfo.ecoFriendlyAlternative.fuelEfficiency}</div>
+                <div className="font-bold text-green-600">{routeInfo.ecoFriendlyAlternative.fuelEfficiency?.score || 'N/A'}/100</div>
               </div>
               <div>
                 <div className="text-gray-500">CO₂ Savings</div>
-                <div className="font-bold text-green-600">{routeInfo.ecoFriendlyAlternative.co2Savings}</div>
+                <div className="font-bold text-green-600">{routeInfo.ecoFriendlyAlternative.fuelEfficiency?.co2Emissions || 'N/A'}</div>
               </div>
             </div>
             <button 
@@ -110,7 +113,7 @@ const NavigationPanel = ({
           </div>
         )}
         
-        {routeInfo.alternateRoutes && routeInfo.alternateRoutes.length > 0 && (
+        {routeInfo?.alternateRoutes && routeInfo.alternateRoutes.length > 0 && (
           <div className="mb-4">
             <button 
               onClick={() => setShowAlternateRoutes(!showAlternateRoutes)}
@@ -135,10 +138,10 @@ const NavigationPanel = ({
                         <span className="text-gray-500"> • {route.duration}</span>
                       </div>
                     </div>
-                    {index === 0 && routeInfo.ecoFriendlyAlternative && (
+                    {route.isEcoFriendly && (
                       <div className="flex items-center mt-1 text-green-600 text-sm">
                         <i className="fas fa-leaf mr-1"></i>
-                        <span>Most eco-friendly</span>
+                        <span>Eco-friendly option</span>
                       </div>
                     )}
                   </div>
@@ -203,7 +206,7 @@ const NavigationPanel = ({
         <div className="bg-gray-50 rounded-lg p-3 mb-4">
           <div className="font-medium mb-2">Turn-by-Turn Directions</div>
           <div className="max-h-40 overflow-y-auto">
-            {routeInfo.steps.slice(0, 5).map((step, index) => (
+            {routeSteps.slice(0, 5).map((step, index) => (
               <div key={index} className="py-2 border-b border-gray-200 last:border-b-0">
                 <div className="flex items-center">
                   <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs mr-2">

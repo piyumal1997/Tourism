@@ -32,6 +32,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
   const [trafficIncidents, setTrafficIncidents] = useState([]);
   const [alternateRoutes, setAlternateRoutes] = useState([]);
   const [isTracking, setIsTracking] = useState(false);
+  const [showNearbyLocations, setShowNearbyLocations] = useState(false);
   const [routeOptions, setRouteOptions] = useState({
     avoidTolls: false,
     avoidHighways: false,
@@ -201,6 +202,65 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       // Stop tracking
       toggleWatchingLocation();
       
+      // Hide user location marker
+      if (userLocationMarker) {
+        userLocationMarker.remove();
+        setUserLocationMarker(null);
+      }
+      
+      // Hide accuracy circle
+      if (map && map.getSource('accuracy-circle')) {
+        map.removeLayer('accuracy-circle');
+        map.removeSource('accuracy-circle');
+      }
+      
+      // If nearby locations is also on, turn it off
+      if (showNearbyLocations) {
+        setShowNearbyLocations(false);
+      }
+    }
+  }, [isTracking, userLocation, map, userLocationMarker, toggleWatchingLocation, startWatchingLocation, showNearbyLocations]);
+
+  // Toggle nearby locations
+  const toggleNearbyLocations = useCallback(() => {
+    const newShowNearby = !showNearbyLocations;
+    setShowNearbyLocations(newShowNearby);
+    
+    if (newShowNearby) {
+      // If tracking is not enabled, request to enable it first
+      if (!isTracking) {
+        alert('Please enable location tracking first to use nearby locations');
+        setShowNearbyLocations(false);
+        return;
+      }
+      
+      if (!userLocation) {
+        alert('Location not available yet. Please wait...');
+        setShowNearbyLocations(false);
+        return;
+      }
+      
+      // Zoom to user location
+      map.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 12,
+        duration: 1000
+      });
+      
+      // Show radius and find nearby locations
+      if (radius > 0) {
+        const locationsWithinRadius = findLocationsWithinRadius(
+          locations, 
+          userLocation.lat, 
+          userLocation.lng, 
+          radius
+        );
+        setLocationsInRadius(locationsWithinRadius);
+      }
+    } else {
+      // Clear nearby locations
+      setLocationsInRadius([]);
+      
       // Hide radius visualization
       if (map && radiusCircle) {
         map.setLayoutProperty(radiusCircle, 'visibility', 'none');
@@ -217,13 +277,16 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         marker.getElement().style.zIndex = '1';
       });
       
-      setLocationsInRadius([]);
+      // Reset view if not in navigation mode
+      if (!navigationMode) {
+        resetView();
+      }
     }
-  }, [isTracking, userLocation, map, radiusCircle, radiusFill, toggleWatchingLocation, startWatchingLocation]);
+  }, [showNearbyLocations, isTracking, userLocation, map, radius, locations, navigationMode, markers, radiusCircle, radiusFill]);
 
   // Update user location marker when location changes
   useEffect(() => {
-    if (map && userLocation) {
+    if (map && userLocation && isTracking) {
       // Remove existing user location marker
       if (userLocationMarker) {
         userLocationMarker.remove();
@@ -288,12 +351,22 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
           duration: 1000
         });
       }
+    } else if (!isTracking && userLocationMarker) {
+      // Remove user location marker when tracking is off
+      userLocationMarker.remove();
+      setUserLocationMarker(null);
+      
+      // Remove accuracy circle
+      if (map && map.getSource('accuracy-circle')) {
+        map.removeLayer('accuracy-circle');
+        map.removeSource('accuracy-circle');
+      }
     }
-  }, [map, userLocation, watching, navigationMode]);
+  }, [map, userLocation, watching, navigationMode, isTracking, userLocationMarker]);
 
-  // Draw radius circle and filter locations
+  // Draw radius circle and filter locations when nearby locations is enabled
   useEffect(() => {
-    if (map && userLocation && radius > 0 && isTracking) {
+    if (map && userLocation && radius > 0 && showNearbyLocations) {
       // Show radius visualization
       if (radiusCircle) {
         map.setLayoutProperty(radiusCircle, 'visibility', 'visible');
@@ -415,7 +488,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         }
       });
     } else if (map && (radiusCircle || radiusFill)) {
-      // Hide the radius when not tracking
+      // Hide the radius when not showing nearby locations
       if (radiusCircle) {
         map.setLayoutProperty(radiusCircle, 'visibility', 'none');
       }
@@ -424,7 +497,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         map.setLayoutProperty(radiusFill, 'visibility', 'none');
       }
     }
-  }, [map, userLocation, radius, locations, isTracking]);
+  }, [map, userLocation, radius, locations, showNearbyLocations, markers]);
 
   // Add Google Maps-style markers
   useEffect(() => {
@@ -519,14 +592,18 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
 
   // Calculate route with multiple stops and traffic consideration
   const calculateRoute = async (waypoints, mode = travelMode, options = routeOptions) => {
-    if (!map || waypoints.length < 2) return;
+    if (!map || waypoints.length < 1) return;
 
     try {
       // Show loading state
       setRouteInfo({ loading: true });
       
-      // Format waypoints for OSRM
-      const coordinates = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
+      // Use user's current location as start if only one destination is provided
+      const routeWaypoints = waypoints.length === 1 && userLocation 
+        ? [userLocation, ...waypoints]
+        : waypoints;
+
+      const coordinates = routeWaypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
       
       // Add options for routing
       const params = new URLSearchParams({
@@ -557,7 +634,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       
       if (data.routes && data.routes.length > 0) {
         // Process route data with traffic information
-        processRouteDataWithTraffic(data, waypoints, mode, options);
+        processRouteDataWithTraffic(data, routeWaypoints, mode, options);
         
         // Show traffic layer after route calculation
         setShowTraffic(true);
@@ -576,8 +653,9 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     const mainRoute = data.routes[0];
     const alternativeRoutes = data.routes.slice(1);
     
-    // Calculate traffic impact
+    // Calculate detailed route information
     const trafficImpact = calculateTrafficImpact(mainRoute, trafficIncidents);
+    const fuelEfficiency = calculateFuelEfficiency(mainRoute, mode);
     
     // Remove existing route layer if any
     if (routeLayer) {
@@ -612,50 +690,40 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     
     setRouteLayer('route');
     
-    // Add alternative routes
-    const altRoutes = alternativeRoutes.map((route, index) => {
-      map.addSource(`alt-route-${index}`, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: route.geometry
-        }
-      });
-      
-      map.addLayer({
-        id: `alt-route-${index}`,
-        type: 'line',
-        source: `alt-route-${index}`,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': index === 0 && ecoRoute ? '#34A853' : '#9E9E9E',
-          'line-width': 4,
-          'line-opacity': 0.6,
-          'line-dasharray': [2, 2]
-        }
-      });
+    // Process alternative routes with detailed information
+    const processedAltRoutes = alternativeRoutes.map((route, index) => {
+      const altTrafficImpact = calculateTrafficImpact(route, trafficIncidents);
+      const altFuelEfficiency = calculateFuelEfficiency(route, mode);
       
       return {
         distance: (route.distance / 1000).toFixed(1) + ' km',
         duration: Math.round(route.duration / 60) + ' min',
-        geometry: route.geometry
+        geometry: route.geometry,
+        trafficImpact: altTrafficImpact,
+        fuelEfficiency: altFuelEfficiency,
+        isEcoFriendly: altFuelEfficiency.score > fuelEfficiency.score
       };
     });
     
-    setAlternateRoutes(altRoutes);
+    // Find the most eco-friendly alternative
+    const ecoRoute = processedAltRoutes.reduce((best, current) => 
+      best.fuelEfficiency.score > current.fuelEfficiency.score ? best : current, 
+      processedAltRoutes[0]
+    );
     
-    // Extract route information with traffic details
+    setEcoRoute(ecoRoute);
+    setAlternateRoutes(processedAltRoutes);
+    
+    // Set detailed route information
     setRouteInfo({
       distance: (mainRoute.distance / 1000).toFixed(1) + ' km',
       duration: Math.round(mainRoute.duration / 60) + ' min',
       steps: mainRoute.legs.flatMap(leg => leg.steps),
       travelMode: mode,
       trafficImpact: trafficImpact,
-      alternateRoutes: altRoutes,
+      fuelEfficiency: fuelEfficiency,
+      alternateRoutes: processedAltRoutes,
+      ecoFriendlyAlternative: ecoRoute,
       trafficIncidents: trafficIncidents.filter(incident => 
         isIncidentOnRoute(incident, mainRoute.geometry)
       )
@@ -663,6 +731,26 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
     
     // Enable navigation mode
     setNavigationMode(true);
+  };
+
+  // Calculate fuel efficiency
+  const calculateFuelEfficiency = (route, mode) => {
+    // Simplified fuel efficiency calculation based on distance and route characteristics
+    const baseEfficiency = {
+      DRIVING: 12, // km/l
+      BICYCLING: 0, // no fuel
+      WALKING: 0,   // no fuel
+      TRANSIT: 8    // km/l equivalent
+    };
+    
+    const distance = route.distance / 1000; // Convert to km
+    const estimatedFuel = mode === 'DRIVING' ? distance / baseEfficiency[mode] : 0;
+    
+    return {
+      score: 100 - (estimatedFuel * 10), // Higher score is better
+      estimatedFuel: estimatedFuel.toFixed(1) + 'L',
+      co2Emissions: (estimatedFuel * 2.3).toFixed(1) + 'kg' // Approximate CO2 emissions
+    };
   };
 
   // Calculate traffic impact on route
@@ -750,7 +838,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       return;
     }
     
-    calculateRoute([userLocation, location.coordinates]);
+    calculateRoute([location.coordinates]);
   };
 
   const clearRoute = () => {
@@ -785,20 +873,6 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
       setIs3DView(false);
       clearRoute();
     }
-  };
-
-  const findNearestLocations = () => {
-    if (!userLocation) {
-      alert('Please enable location services first');
-      return;
-    }
-    
-    // Zoom to user location
-    map.flyTo({
-      center: [userLocation.lng, userLocation.lat],
-      zoom: 12,
-      duration: 1000
-    });
   };
 
   const filterMarkers = (category) => {
@@ -842,8 +916,8 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
 
   // Calculate multi-stop route
   const calculateMultiStopRoute = useCallback(() => {
-    if (selectedLocations.length < 2) {
-      alert('Please select at least 2 locations for a multi-stop route');
+    if (selectedLocations.length < 1) {
+      alert('Please select at least 1 location for a route');
       return;
     }
     
@@ -877,7 +951,7 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         toggle3DView={toggle3DView} 
         resetView={resetView} 
         is3DView={is3DView}
-        findNearestLocations={findNearestLocations}
+        findNearestLocations={toggleNearbyLocations}
         userLocation={userLocation}
         clearRoute={clearRoute}
         travelMode={travelMode}
@@ -891,6 +965,8 @@ const MapSection = ({ locations, onLocationSelect, searchTerm, filters }) => {
         selectedLocations={selectedLocations}
         routeOptions={routeOptions}
         updateRouteOptions={updateRouteOptions}
+        showNearbyLocations={showNearbyLocations}
+        onToggleNearbyLocations={toggleNearbyLocations}
       />
       
       {/* Location Error Alert */}
