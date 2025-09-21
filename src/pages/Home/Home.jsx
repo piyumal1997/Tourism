@@ -10,7 +10,7 @@ const NewsletterSignup = lazy(() => import('./Sections/NewsletterSignup'));
 
 const Home = () => {
   return (
-    <div className="home-page pt-16">
+    <div className="home-page">
       <Suspense fallback={<LoadingSpinner />}>
         <HeroSection />
       </Suspense>

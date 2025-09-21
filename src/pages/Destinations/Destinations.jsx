@@ -29,7 +29,7 @@ const Destinations = () => {
   };
 
   return (
-    <main className="pt-20">
+    <main className="pt-0">
       {/* Hero Section */}
       <section className="relative h-64 bg-gradient-to-r from-emerald-500 to-blue-500 flex items-center justify-center">
         <div className="absolute inset-0 bg-black/30"></div>

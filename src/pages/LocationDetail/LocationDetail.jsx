@@ -34,7 +34,7 @@ const LocationDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
+      <div className="min-h-screen flex items-center justify-center pt-0">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -42,7 +42,7 @@ const LocationDetail = () => {
 
   if (!location) {
     return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold">Location Not Found</h2>
           <p className="mt-2">The location you're looking for doesn't exist.</p>
@@ -55,7 +55,7 @@ const LocationDetail = () => {
   }
 
   return (
-    <div className="location-detail-page pt-20">
+    <div className="location-detail-page pt-0">
       <Suspense fallback={<LoadingSpinner />}>
         <LocationGallery location={location} />
       </Suspense>
