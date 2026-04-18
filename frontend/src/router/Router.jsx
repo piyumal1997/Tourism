@@ -14,6 +14,10 @@ const NotFound = lazy(() => import("../pages/NotFound/NotFound"));
 const FullScreenMap = lazy(() => import("../pages/Destinations/FullScreenMap"));
 const RoutePlanner = lazy(() => import("../pages/Destinations/RoutePlanner"));
 
+//Dashboard
+const Login = lazy(() => import("../pages/Dashboard/Login"));
+const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard"));
+
 const AppRouter = () => {
   return (
     <Suspense
@@ -33,6 +37,12 @@ const AppRouter = () => {
           <Route path="experiences" element={<Experiences />} />
           <Route path="travel-tips" element={<TravelTips />} />
           <Route path="location/:id" element={<LocationDetail />} />
+
+          {/* Dashboard Routes */}
+          <Route path="login" element={<Login />} />
+          <Route path="dashboard" element={<Dashboard />} />
+
+          {/* Not Found Route */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

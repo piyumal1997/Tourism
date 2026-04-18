@@ -1,3 +1,18 @@
+# =============================================
+# Root Level (Monorepo)
+# =============================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (highly important!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 # Logs
 logs
 *.log
@@ -7,18 +22,77 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Build outputs
+dist/
+build/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Vite / Frontend specific
+frontend/.vite/
+frontend/dist/
+frontend/coverage/
+frontend/.env
+
+# Backend specific
+backend/dist/
+backend/coverage/
+backend/*.log
+backend/tourism.db*          # if you ever use SQLite again
+
+# Database (if any local files)
+*.sqlite
+*.db
+
+# Editor / IDE files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary / cache files
+.cache/
+.tmp/
+temp/
+*.tmp
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Optional: Lock files (if you want to keep only one package-lock.json)
+# package-lock.json
+# pnpm-lock.yaml
+# yarn.lock
+
+# =============================================
+# Optional but Recommended for Production
+# =============================================
+
+# Do not commit built frontend assets if deploying separately
+# frontend/dist/**
+
+# Screenshots or test data
+screenshots/
+test-results/
+
+# Personal notes
+*.md.bak
+TODO.md
+
+# =============================================
+# End of .gitignore
+# =============================================
