@@ -86,8 +86,3 @@ This project is open-source and available under standard open-source licensing.
 
 ***
 
-**How to use this:**
-1. In your local repository, create a file named `README.md` in the root directory.
-2. Copy and paste the markdown code above into the file.
-3. Commit and push the changes to your main branch! You can tweak the shields and the "Tech Stack" section if you decide to add different tools later on.
-
